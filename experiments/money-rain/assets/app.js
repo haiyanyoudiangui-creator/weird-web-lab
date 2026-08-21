@@ -193,11 +193,6 @@
     context.drawImage(texture, -halfWidth, -halfHeight, paper.width, paper.height);
     context.restore();
 
-    tracePaperPath(paper, bend);
-    context.strokeStyle = "rgba(34, 36, 33, .34)";
-    context.lineWidth = .85;
-    context.stroke();
-
     context.globalAlpha = previousAlpha;
     context.restore();
   };
