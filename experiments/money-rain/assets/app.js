@@ -2,167 +2,369 @@
   const root = document.querySelector("[data-money-lab]");
   const stage = document.querySelector("[data-money-stage]");
   const floor = document.querySelector("[data-money-floor]");
-  const preview = document.querySelector("[data-preview]");
-  const previewDenomination = document.querySelector("[data-preview-denomination]");
-  const previewSymbol = document.querySelector(".preview-symbol");
-  const dropButton = document.querySelector("[data-drop-money]");
+  const frontInput = document.querySelector("[data-front-input]");
+  const backInput = document.querySelector("[data-back-input]");
+  const dropZone = document.querySelector("[data-drop-zone]");
+  const fileStatus = document.querySelector("[data-file-status]");
+  const previewImage = document.querySelector("[data-preview-image]");
   const clearButton = document.querySelector("[data-clear-floor]");
   const status = document.querySelector("[data-stage-status]");
+  const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
 
-  if (!root || !stage || !floor || !preview || !dropButton || !clearButton) return;
+  if (!root || !stage || !floor || !clearButton) return;
 
   const currencies = {
-    cny: { symbol: "¥", denomination: "¥100" },
-    usd: { symbol: "$", denomination: "$100" },
-    eur: { symbol: "€", denomination: "€100" },
-    jpy: { symbol: "¥", denomination: "¥1000" },
-    gbp: { symbol: "£", denomination: "£100" },
-    krw: { symbol: "₩", denomination: "₩10000" }
-  };
-  const currencyNames = {
-    cny: "人民币",
-    usd: "美元",
-    eur: "欧元",
-    jpy: "日元",
-    gbp: "英镑",
-    krw: "韩元"
+    cny: { symbol: "¥", denomination: "¥100", name: "人民币", color: "cny" },
+    usd: { symbol: "$", denomination: "$100", name: "美元", color: "usd" },
+    eur: { symbol: "€", denomination: "€100", name: "欧元", color: "eur" },
+    jpy: { symbol: "¥", denomination: "¥1000", name: "日元", color: "jpy" },
+    gbp: { symbol: "£", denomination: "£100", name: "英镑", color: "gbp" },
+    krw: { symbol: "₩", denomination: "₩10000", name: "韩元", color: "krw" }
   };
   const currencyKeys = Object.keys(currencies);
+  const MAX_NOTES = 280;
+  const notes = new Set();
   const landedNotes = [];
+  const spawnQueue = [];
+  const imageUrls = { front: "", back: "" };
+  const objectUrls = new Set();
+  const pointer = { x: 0, y: 0, lastX: 0, lastY: 0 };
   let selectedCurrency = "cny";
   let selectedQuantity = 1;
-  let activeDrops = 0;
-  let nextLevel = 0;
-  let dropRun = 0;
+  let currentRun = 0;
+  let frameId = 0;
+  let wind = 0;
+  let windTarget = 0;
 
   const setStatus = (message) => {
     if (status) status.textContent = message;
   };
 
-  const updatePreview = () => {
-    const currency = currencies[selectedCurrency];
-    currencyKeys.forEach((key) => preview.classList.remove("currency-" + key));
-    preview.classList.add("currency-" + selectedCurrency);
-    if (previewDenomination) previewDenomination.textContent = currency.denomination;
-    if (previewSymbol) previewSymbol.textContent = currency.symbol;
+  const stageSize = () => ({
+    width: stage.clientWidth,
+    height: stage.clientHeight,
+    floorHeight: stage.clientHeight * .17
+  });
+
+  const removeNote = (note) => {
+    if (!note) return;
+    notes.delete(note);
+    note.element.remove();
+    note.shadow.remove();
   };
 
-  const updateSelectedButtons = () => {
-    document.querySelectorAll("[data-currency]").forEach((button) => {
-      button.classList.toggle("is-selected", button.dataset.currency === selectedCurrency);
-    });
-    document.querySelectorAll("[data-quantity]").forEach((button) => {
-      button.classList.toggle("is-selected", Number(button.dataset.quantity) === selectedQuantity);
-    });
-  };
-
-  const makeNote = () => {
-    const currency = currencies[selectedCurrency];
-    const note = document.createElement("div");
-    note.className = "money-note currency-" + selectedCurrency;
-    note.setAttribute("aria-hidden", "true");
-    note.innerHTML = [
-      "<span class=\"note-word\">样票 / SAMPLE</span>",
-      "<strong class=\"note-denomination\">" + currency.denomination + "</strong>",
-      "<span class=\"note-symbol\">" + currency.symbol + "</span>",
-      "<span class=\"note-copy\">非法定货币</span>",
-      "<span class=\"note-line\"></span>"
-    ].join("");
-    return note;
+  const removeFromLanded = (note) => {
+    const index = landedNotes.indexOf(note);
+    if (index >= 0) landedNotes.splice(index, 1);
   };
 
   const trimNotes = () => {
-    while (landedNotes.length > 260) {
-      const oldest = landedNotes.shift();
-      oldest?.remove();
+    while (notes.size > MAX_NOTES && landedNotes.length) {
+      removeNote(landedNotes.shift());
     }
   };
 
-  const dropNote = (level, delay, runId) => {
-    window.setTimeout(() => {
-      if (runId !== dropRun) return;
-      const note = makeNote();
-      floor.appendChild(note);
-      const noteWidth = note.offsetWidth || 176;
-      const noteHeight = note.offsetHeight || 96;
-      const stageWidth = stage.clientWidth;
-      const stageHeight = stage.clientHeight;
-      const startX = Math.max(8, Math.random() * Math.max(12, stageWidth - noteWidth - 16));
-      const targetX = Math.max(8, Math.random() * Math.max(12, stageWidth - noteWidth - 16));
-      const startY = -noteHeight - Math.random() * 120;
-      const targetY = stageHeight - noteHeight - 18 - level * 1.55;
-      const startRotation = (Math.random() - .5) * 34;
-      const targetRotation = (Math.random() - .5) * 24;
-      const duration = 720 + Math.random() * 420;
-      const startedAt = performance.now();
-      activeDrops += 1;
-      note.style.transform = "translate3d(" + startX + "px, " + startY + "px, 0) rotate(" + startRotation + "deg)";
-
-      const animate = (now) => {
-        if (runId !== dropRun) {
-          note.remove();
-          return;
-        }
-        const progress = Math.min(1, (now - startedAt) / duration);
-        const eased = 1 - Math.pow(1 - progress, 3);
-        const bounce = progress > .78 ? Math.sin((progress - .78) / .22 * Math.PI) * 7 * (1 - progress) : 0;
-        const x = startX + (targetX - startX) * eased;
-        const y = startY + (targetY - startY) * eased - bounce;
-        const rotation = startRotation + (targetRotation - startRotation) * eased;
-        note.style.transform = "translate3d(" + x.toFixed(1) + "px, " + y.toFixed(1) + "px, 0) rotate(" + rotation.toFixed(2) + "deg)";
-        if (progress < 1) {
-          window.requestAnimationFrame(animate);
-          return;
-        }
-        note.classList.add("is-landed");
-        landedNotes.push(note);
-        activeDrops -= 1;
-        trimNotes();
-        setStatus(activeDrops ? "还有纸钞正在下落……" : "地面已有 " + landedNotes.length + " 张样票。");
-      };
-
-      window.requestAnimationFrame(animate);
-    }, delay);
+  const createSampleFace = (currency) => {
+    const face = document.createElement("div");
+    face.className = "sample-face";
+    face.innerHTML = [
+      "<span class=\"sample-word\">SAMPLE / 样票</span>",
+      "<strong class=\"sample-number\">" + currency.denomination + "</strong>",
+      "<span class=\"sample-symbol\">" + currency.symbol + "</span>",
+      "<span class=\"sample-copy\">非法定货币 · 仅作视觉效果</span>"
+    ].join("");
+    return face;
   };
 
-  const dropMoney = () => {
-    preview.classList.add("is-hidden");
-    setStatus("正在下落 " + selectedQuantity + " 张" + currencyNames[selectedCurrency] + "样票……");
-    for (let index = 0; index < selectedQuantity; index += 1) {
-      const level = nextLevel % 92;
-      nextLevel += 1;
-      dropNote(level, index * 14, dropRun);
+  const createImageFace = (url) => {
+    const face = document.createElement("div");
+    const image = document.createElement("img");
+    face.appendChild(image);
+    image.src = url;
+    image.alt = "";
+    image.draggable = false;
+    return face;
+  };
+
+  const createPaper = (level) => {
+    const currency = currencies[selectedCurrency];
+    const element = document.createElement("div");
+    const shadow = document.createElement("div");
+    const front = document.createElement("div");
+    const back = document.createElement("div");
+    const frontContent = imageUrls.front ? createImageFace(imageUrls.front) : createSampleFace(currency);
+    const backContent = imageUrls.back
+      ? createImageFace(imageUrls.back)
+      : imageUrls.front
+        ? createImageFace(imageUrls.front)
+        : createSampleFace(currency);
+
+    element.className = "paper-note currency-" + currency.color + (imageUrls.back ? " has-back" : "");
+    element.setAttribute("aria-hidden", "true");
+    shadow.className = "paper-shadow";
+    front.className = "paper-face front";
+    back.className = "paper-face back";
+    front.appendChild(frontContent);
+    back.appendChild(backContent);
+    element.appendChild(front);
+    element.appendChild(back);
+    floor.appendChild(shadow);
+    floor.appendChild(element);
+
+    return {
+      element,
+      shadow,
+      level,
+      x: 0,
+      y: 0,
+      z: 0,
+      targetX: 0,
+      targetY: 0,
+      targetZ: 0,
+      vx: 0,
+      vy: 0,
+      vz: 0,
+      rx: 0,
+      ry: 0,
+      rz: 0,
+      vrx: 0,
+      vry: 0,
+      vrz: 0,
+      bounceCount: 0,
+      phase: "falling",
+      runId: currentRun
+    };
+  };
+
+  const renderPaper = (paper) => {
+    const size = stageSize();
+    const scale = Math.max(.66, Math.min(1.12, .82 + (paper.z + 180) / 720));
+    const shadowScale = Math.max(.5, Math.min(1.15, scale * (1 - Math.abs(paper.z) / 800)));
+    const shadowY = size.height - size.floorHeight + 10;
+    paper.element.style.zIndex = String(10 + Math.max(0, Math.round(paper.z + paper.level)));
+    paper.element.style.transform = "translate3d(" + paper.x.toFixed(1) + "px, " + paper.y.toFixed(1) + "px, " + paper.z.toFixed(1) + "px) rotateX(" + paper.rx.toFixed(2) + "deg) rotateY(" + paper.ry.toFixed(2) + "deg) rotateZ(" + paper.rz.toFixed(2) + "deg) scale(" + scale.toFixed(3) + ")";
+    paper.shadow.style.width = (paper.element.offsetWidth || 190) * shadowScale + "px";
+    paper.shadow.style.transform = "translate3d(" + (paper.x + (paper.element.offsetWidth || 190) * (1 - shadowScale) / 2).toFixed(1) + "px, " + shadowY.toFixed(1) + "px, 0) rotate(" + paper.rz.toFixed(2) + "deg) scaleY(" + Math.max(.35, shadowScale * .7).toFixed(3) + ")";
+    paper.shadow.style.opacity = String(Math.max(.08, Math.min(.3, .22 * shadowScale)));
+  };
+
+  const landPaper = (paper) => {
+    if (paper.phase === "landed") return;
+    paper.phase = "landed";
+    paper.y = paper.targetY;
+    paper.z = paper.targetZ;
+    paper.vx = 0;
+    paper.vy = 0;
+    paper.vz = 0;
+    paper.vrx = 0;
+    paper.vry = 0;
+    paper.vrz = 0;
+    landedNotes.push(paper);
+    trimNotes();
+    renderPaper(paper);
+  };
+
+  const spawnPaper = (level, runId) => {
+    if (runId !== currentRun) return;
+    const paper = createPaper(level);
+    const size = stageSize();
+    const noteWidth = paper.element.offsetWidth || 190;
+    const noteHeight = paper.element.offsetHeight || 108;
+    const floorTop = size.height - size.floorHeight;
+    paper.x = Math.max(8, Math.random() * Math.max(12, size.width - noteWidth - 16));
+    paper.y = -noteHeight - Math.random() * 90;
+    paper.z = -120 + Math.random() * 180;
+    paper.targetX = Math.max(8, Math.random() * Math.max(12, size.width - noteWidth - 16));
+    paper.targetY = floorTop - noteHeight / 2 - Math.min(level, 110) * 1.55;
+    paper.targetZ = (level % 9) * 3 + Math.random() * 8;
+    paper.vx = (Math.random() - .5) * 1.4;
+    paper.vy = Math.random() * .6;
+    paper.vz = (Math.random() - .5) * .85;
+    paper.rx = (Math.random() - .5) * 35;
+    paper.ry = (Math.random() - .5) * 35;
+    paper.rz = (Math.random() - .5) * 34;
+    paper.vrx = (Math.random() - .5) * 4.5;
+    paper.vry = (Math.random() - .5) * 5.2;
+    paper.vrz = (Math.random() - .5) * 3.5;
+    notes.add(paper);
+    renderPaper(paper);
+    if (reducedMotion.matches) landPaper(paper);
+  };
+
+  const updatePaper = (paper) => {
+    if (paper.phase === "landed") return;
+    const size = stageSize();
+    paper.vx += wind * .012;
+    paper.vx *= .994;
+    paper.vy += .18;
+    paper.vy *= .998;
+    paper.vz *= .995;
+    paper.x += paper.vx;
+    paper.y += paper.vy;
+    paper.z += paper.vz;
+    paper.rx += paper.vrx;
+    paper.ry += paper.vry;
+    paper.rz += paper.vrz;
+    paper.vrx *= .997;
+    paper.vry *= .997;
+    paper.vrz *= .997;
+
+    if (paper.x < -80 || paper.x > size.width - 40) paper.vx *= -.72;
+    if (paper.y >= paper.targetY && paper.vy > 0) {
+      paper.y = paper.targetY;
+      paper.vy = -Math.abs(paper.vy) * .2;
+      paper.vx *= .6;
+      paper.vrx *= .48;
+      paper.vry *= .48;
+      paper.vrz *= .48;
+      paper.bounceCount += 1;
+      if (paper.bounceCount >= 3 || Math.abs(paper.vy) < .8) landPaper(paper);
     }
+    renderPaper(paper);
+  };
+
+  const tick = () => {
+    frameId = 0;
+    const batchSize = reducedMotion.matches ? spawnQueue.length : 4;
+    for (let index = 0; index < batchSize && spawnQueue.length; index += 1) {
+      const item = spawnQueue.shift();
+      if (item.runId === currentRun) spawnPaper(item.level, item.runId);
+    }
+    wind += (windTarget - wind) * .06;
+    windTarget *= .94;
+    notes.forEach(updatePaper);
+    if (spawnQueue.length || Array.from(notes).some((paper) => paper.phase !== "landed")) {
+      frameId = window.requestAnimationFrame(tick);
+    } else if (activeDrops() === 0) {
+      setStatus("地面已有 " + landedNotes.length + " 张样票。");
+    }
+  };
+
+  const activeDrops = () => Array.from(notes).filter((paper) => paper.phase !== "landed").length + spawnQueue.length;
+  const schedule = () => {
+    if (!frameId) frameId = window.requestAnimationFrame(tick);
+  };
+
+  const queueDrop = (quantity) => {
+    const available = MAX_NOTES - notes.size - spawnQueue.length;
+    const amount = Math.max(0, Math.min(quantity, available));
+    if (!amount) {
+      setStatus("纸堆已经很高了，请先清空地面。");
+      return;
+    }
+    const runId = currentRun;
+    const currentLevel = landedNotes.length + spawnQueue.length;
+    for (let index = 0; index < amount; index += 1) {
+      spawnQueue.push({ level: (currentLevel + index) % 112, runId });
+    }
+    setStatus("正在下落 " + amount + " 张纸……");
+    schedule();
+  };
+
+  const disturbFloor = (event) => {
+    if (!notes.size) return;
+    const bounds = stage.getBoundingClientRect();
+    const x = event.clientX - bounds.left;
+    const y = event.clientY - bounds.top;
+    landedNotes.slice().forEach((paper) => {
+      const distance = Math.hypot(paper.x - x, paper.y - y);
+      if (distance > 230) return;
+      removeFromLanded(paper);
+      paper.phase = "falling";
+      paper.bounceCount = 0;
+      paper.vx += (paper.x - x) * .008;
+      paper.vy = -1.2 - Math.max(0, (230 - distance) / 230) * 1.5;
+      paper.vz += (Math.random() - .5) * 1.5;
+      paper.vrz += (Math.random() - .5) * 3;
+    });
+    setStatus("地面被碰了一下，纸张重新找位置。");
+    schedule();
+  };
+
+  const acceptedFile = (file) => file && /^image\/(jpeg|png|webp)$/.test(file.type) && file.size <= 8 * 1024 * 1024;
+
+  const useImage = (file, side) => {
+    if (!acceptedFile(file)) {
+      setStatus("只接受 8MB 以内的 JPG、PNG 或 WebP 图片。");
+      return;
+    }
+    imageUrls[side] = URL.createObjectURL(file);
+    objectUrls.add(imageUrls[side]);
+    if (side === "front" && previewImage) {
+      previewImage.src = imageUrls.front;
+      previewImage.hidden = false;
+      previewImage.parentElement?.querySelector("span")?.remove();
+    }
+    if (fileStatus) fileStatus.textContent = side === "front" ? "已加载本地正面图片" : "已加载本地背面图片";
+    setStatus("图片只保留在当前浏览器中。");
+  };
+
+  const setCurrency = (key) => {
+    if (!currencies[key]) return;
+    selectedCurrency = key;
+    document.querySelectorAll("[data-currency]").forEach((button) => {
+      button.classList.toggle("is-selected", button.dataset.currency === key);
+    });
+    setStatus("下一批纸张使用" + currencies[key].name + "标签。");
   };
 
   document.querySelectorAll("[data-currency]").forEach((button) => {
-    button.addEventListener("click", () => {
-      selectedCurrency = button.dataset.currency || "cny";
-      updateSelectedButtons();
-      updatePreview();
-      setStatus("预览已换成" + currencyNames[selectedCurrency] + "样票。");
-    });
+    button.addEventListener("click", () => setCurrency(button.dataset.currency));
   });
-
   document.querySelectorAll("[data-quantity]").forEach((button) => {
     button.addEventListener("click", () => {
       selectedQuantity = Number(button.dataset.quantity) || 1;
-      updateSelectedButtons();
-      setStatus("下一次会掉落 " + selectedQuantity + " 张。");
+      document.querySelectorAll("[data-quantity]").forEach((item) => {
+        item.classList.toggle("is-selected", item === button);
+      });
+      queueDrop(selectedQuantity);
     });
   });
-
-  dropButton.addEventListener("click", dropMoney);
+  frontInput?.addEventListener("change", () => useImage(frontInput.files?.[0], "front"));
+  backInput?.addEventListener("change", () => useImage(backInput.files?.[0], "back"));
+  dropZone?.addEventListener("dragover", (event) => {
+    event.preventDefault();
+    dropZone.classList.add("is-over");
+  });
+  dropZone?.addEventListener("dragleave", () => dropZone.classList.remove("is-over"));
+  dropZone?.addEventListener("drop", (event) => {
+    event.preventDefault();
+    dropZone.classList.remove("is-over");
+    useImage(event.dataTransfer.files?.[0], "front");
+  });
   clearButton.addEventListener("click", () => {
-    dropRun += 1;
-    activeDrops = 0;
-    landedNotes.splice(0).forEach((note) => note.remove());
-    floor.querySelectorAll(".money-note").forEach((note) => note.remove());
-    nextLevel = 0;
-    preview.classList.remove("is-hidden");
+    currentRun += 1;
+    spawnQueue.splice(0);
+    notes.forEach(removeNote);
+    notes.clear();
+    landedNotes.splice(0);
+    wind = 0;
+    windTarget = 0;
+    if (frameId) window.cancelAnimationFrame(frameId);
+    frameId = 0;
     setStatus("地面很干净。");
   });
+  stage.addEventListener("pointermove", (event) => {
+    const dx = pointer.x ? event.clientX - pointer.x : 0;
+    pointer.lastX = pointer.x;
+    pointer.lastY = pointer.y;
+    pointer.x = event.clientX;
+    pointer.y = event.clientY;
+    windTarget = Math.max(-4, Math.min(4, windTarget + dx * .035));
+    if (activeDrops()) schedule();
+  }, { passive: true });
+  stage.addEventListener("pointerdown", disturbFloor);
+  window.addEventListener("resize", () => {
+    notes.forEach((paper) => {
+      const size = stageSize();
+      const noteHeight = paper.element.offsetHeight || 108;
+      paper.targetY = size.height - size.floorHeight - noteHeight / 2 - Math.min(paper.level, 110) * 1.55;
+      if (paper.phase === "landed") paper.y = paper.targetY;
+      renderPaper(paper);
+    });
+  }, { passive: true });
 
-  updateSelectedButtons();
-  updatePreview();
+  window.addEventListener("beforeunload", () => {
+    objectUrls.forEach((url) => URL.revokeObjectURL(url));
+  });
 })();

@@ -3,75 +3,85 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="theme-color" content="#17151d">
-  <meta name="description" content="一场不会让你变富，但会产生纸张质感的样票降落实验。">
+  <meta name="theme-color" content="#d8d5ce">
+  <meta name="description" content="一个本地纸张物理视觉实验：上传图片，让纸片从空中自然落下并堆叠。">
   <title>纸钞降落实验 · weird-web-lab</title>
   <link rel="stylesheet" href="assets/site.css">
 </head>
 <body data-money-lab>
-  <div class="money-shell">
-    <header class="money-header">
+  <div class="studio-shell">
+    <header class="studio-header">
       <a class="back-link" href="../../">← 回到 weird-web-lab</a>
-      <span class="header-note">视觉玩具 / 不是提款机</span>
+      <span class="header-note">本地视觉实验 / 不是真钱</span>
     </header>
 
     <main>
       <section class="intro">
         <p class="eyebrow">SECOND STRANGE WEB PAGE</p>
         <h1>纸钞降落实验</h1>
-        <p class="intro-copy">选择一种币种和数量，让它们从页面上方飘下来，在底部堆成一小团没什么用的纸。</p>
-        <p class="disclaimer"><strong>先说清楚：</strong>页面里的纸钞是虚构样票，明确标注“非法定货币”，不是真实人民币，也不能兑换或使用。</p>
+        <p class="intro-copy">让一张纸从空中落下来。它会翻面、漂移、被空气推一下，最后和其他纸张一起留在地面上。</p>
+        <p class="safety-note"><strong>请注意：</strong>默认样票是虚构的。你也可以上传自己的图片，但文件只在当前浏览器本地使用，不会上传或保存。</p>
       </section>
 
-      <section class="control-panel" aria-label="纸钞设置">
-        <div class="control-block">
-          <h2>选择一种纸钞</h2>
-          <div class="option-row currency-row">
-            <button class="option is-selected" type="button" data-currency="cny">人民币 <span>¥</span></button>
-            <button class="option" type="button" data-currency="usd">美元 <span>$</span></button>
-            <button class="option" type="button" data-currency="eur">欧元 <span>€</span></button>
-            <button class="option" type="button" data-currency="jpy">日元 <span>¥</span></button>
-            <button class="option" type="button" data-currency="gbp">英镑 <span>£</span></button>
-            <button class="option" type="button" data-currency="krw">韩元 <span>₩</span></button>
+      <section class="tool-strip" aria-label="纸张设置">
+        <div class="tool-group upload-group">
+          <span class="tool-label">纸张纹理</span>
+          <div class="upload-row">
+            <label class="upload-button" for="front-image">上传正面<input id="front-image" type="file" accept="image/jpeg,image/png,image/webp" data-front-input></label>
+            <label class="upload-button secondary" for="back-image">上传背面（可选）<input id="back-image" type="file" accept="image/jpeg,image/png,image/webp" data-back-input></label>
+            <span class="file-status" data-file-status>当前使用虚构样票</span>
+          </div>
+          <div class="drop-zone" data-drop-zone>也可以把图片拖到这里</div>
+          <div class="upload-preview" data-upload-preview>
+            <span>上传正面图片后，会在这里预览</span>
+            <img data-preview-image alt="本地上传图片预览" hidden>
           </div>
         </div>
-        <div class="control-block">
-          <h2>一次掉几张</h2>
-          <div class="option-row quantity-row">
-            <button class="option is-selected" type="button" data-quantity="1">1 张</button>
-            <button class="option" type="button" data-quantity="10">10 张</button>
-            <button class="option" type="button" data-quantity="100">100 张</button>
+
+        <div class="tool-group">
+          <span class="tool-label">币种标签</span>
+          <div class="segmented-options">
+            <button class="segment is-selected" type="button" data-currency="cny">人民币 ¥</button>
+            <button class="segment" type="button" data-currency="usd">美元 $</button>
+            <button class="segment" type="button" data-currency="eur">欧元 €</button>
+            <button class="segment" type="button" data-currency="jpy">日元 ¥</button>
+            <button class="segment" type="button" data-currency="gbp">英镑 £</button>
+            <button class="segment" type="button" data-currency="krw">韩元 ₩</button>
           </div>
         </div>
-        <div class="action-row">
-          <button class="drop-button" type="button" data-drop-money>让纸钞掉下来 <span aria-hidden="true">↓</span></button>
+
+        <div class="tool-group quantity-group">
+          <span class="tool-label">数量</span>
+          <div class="quantity-options">
+            <button class="quantity-button is-selected" type="button" data-quantity="1">掉落一张</button>
+            <button class="quantity-button" type="button" data-quantity="10">掉落十张</button>
+            <button class="quantity-button" type="button" data-quantity="100">下钱雨（100 张）</button>
+          </div>
+        </div>
+
+        <div class="tool-actions">
           <button class="clear-button" type="button" data-clear-floor>清空地面</button>
         </div>
       </section>
 
-      <section class="money-stage" data-money-stage aria-label="纸钞降落区域">
-        <div class="stage-top">
-          <span>纸张会落在这里</span>
+      <section class="money-stage" data-money-stage aria-label="纸张物理实验区域">
+        <div class="stage-caption">
+          <span>纸张会从这里落下</span>
           <span data-stage-status aria-live="polite">地面很干净。</span>
         </div>
-        <div class="sky-mark sky-mark-one" aria-hidden="true">✳</div>
-        <div class="sky-mark sky-mark-two" aria-hidden="true">·</div>
-        <div class="floor-line" aria-hidden="true"></div>
+        <div class="stage-air-mark stage-air-mark-one" aria-hidden="true">↝</div>
+        <div class="stage-air-mark stage-air-mark-two" aria-hidden="true">·</div>
+        <div class="floor-surface" aria-hidden="true"></div>
         <div class="floor-shadow" aria-hidden="true"></div>
         <div class="money-floor" data-money-floor></div>
-        <div class="preview-note currency-cny" data-preview aria-hidden="true">
-          <span class="preview-word">样票</span>
-          <strong data-preview-denomination>¥100</strong>
-          <span class="preview-symbol">¥</span>
-          <small>仅作视觉效果</small>
-        </div>
-        <p class="stage-hint">点击按钮<br>看一场纸张天气</p>
+        <p class="stage-hint">移动鼠标制造一点气流<br><span>点击地面也会有反应</span></p>
+        <p class="local-only-mark">LOCAL ONLY<br>仅在此浏览器中运行</p>
       </section>
 
-      <section class="footer-note">
-        <span class="tiny-star" aria-hidden="true">✦</span>
-        <p>这里能生成的是纸片，不是财富。真正的一百块还需要你自己去赚。</p>
-      </section>
+      <footer class="footer-note">
+        <span aria-hidden="true">✦</span>
+        <p>这里掉下来的是纸，不是钱。页面内所有样票都不是法定货币。</p>
+      </footer>
     </main>
   </div>
   <script src="assets/app.js" defer></script>
