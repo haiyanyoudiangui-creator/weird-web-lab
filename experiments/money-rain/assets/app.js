@@ -10,10 +10,8 @@
   const clearButton = document.querySelector("[data-clear-floor]");
   const status = document.querySelector("[data-stage-status]");
   const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
-  const VerletEngine = window.VerletJS;
-  const Vec2 = window.Vec2;
 
-  if (!root || !stage || !floor || !clearButton || !VerletEngine || !Vec2) return;
+  if (!root || !stage || !floor || !clearButton) return;
 
   const currencies = {
     cny: { symbol: "¥", denomination: "¥100", name: "人民币", color: "#d9e9b7" },
@@ -25,7 +23,6 @@
   };
 
   const MAX_NOTES = 280;
-  const PERSPECTIVE = 980;
   const FLOOR_RATIO = .17;
   const notes = new Set();
   const landedNotes = [];
@@ -53,11 +50,6 @@
   canvas.dataset.moneyCanvas = "true";
   stage.appendChild(canvas);
   floor.hidden = true;
-
-  const engine = new VerletEngine(1, 1, canvas);
-  engine.gravity = new Vec2(0, .2);
-  engine.friction = .993;
-  engine.groundFriction = .72;
 
   const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
   const setStatus = (message) => {
@@ -121,56 +113,8 @@
     sampleTextures[key] = createSampleTexture(currencies[key]);
   });
 
-  const removeComposite = (paper) => {
-    if (!paper.composite) return;
-    const index = engine.composites.indexOf(paper.composite);
-    if (index >= 0) engine.composites.splice(index, 1);
-  };
-
-  const addComposite = (paper) => {
-    if (!paper.composite || engine.composites.includes(paper.composite)) return;
-    engine.composites.push(paper.composite);
-  };
-
-  const moveComposite = (paper, dx, dy) => {
-    paper.composite.particles.forEach((particle) => {
-      particle.pos.x += dx;
-      particle.pos.y += dy;
-      particle.lastPos.x += dx;
-      particle.lastPos.y += dy;
-    });
-  };
-
-  const paperCenter = (paper) => {
-    let x = 0;
-    let y = 0;
-    const particles = paper.composite.particles;
-    particles.forEach((particle) => {
-      x += particle.pos.x;
-      y += particle.pos.y;
-    });
-    return { x: x / particles.length, y: y / particles.length };
-  };
-
-  const paperBottom = (paper) => {
-    let bottom = -Infinity;
-    paper.composite.particles.forEach((particle) => {
-      bottom = Math.max(bottom, particle.pos.y);
-    });
-    return bottom;
-  };
-
-  const paperBottomVelocity = (paper) => {
-    let velocity = 0;
-    const segments = paper.segments;
-    for (let column = 0; column < segments; column += 1) {
-      const particle = paper.composite.particles[(segments - 1) * segments + column];
-      velocity = Math.max(velocity, particle.pos.y - particle.lastPos.y);
-    }
-    return velocity;
-  };
-
-  const targetBottom = (paper, size) => size.floorTop - 2 - Math.min(paper.level, 110) * 1.55;
+  const activeDrops = () => spawnQueue.length
+    + Array.from(notes).filter((paper) => paper.phase !== "landed").length;
 
   const resizeCanvas = () => {
     const size = stageSize();
@@ -180,12 +124,10 @@
     canvas.height = Math.round(size.height * pixelRatio);
     canvas.style.width = size.width + "px";
     canvas.style.height = size.height + "px";
-    engine.width = size.width;
-    engine.height = size.floorTop + 1;
     notes.forEach((paper) => {
       if (paper.phase === "landed" && previousFloorTop) {
-        const dy = size.floorTop - oldFloorTop;
-        moveComposite(paper, 0, dy);
+        paper.y += size.floorTop - oldFloorTop;
+        paper.targetY += size.floorTop - oldFloorTop;
       }
       paper.floorTopAtRest = size.floorTop;
     });
@@ -193,238 +135,177 @@
     drawScene();
   };
 
-  const projectParticle = (paper, particle, row, column, center) => {
-    const localX = particle.pos.x - center.x;
-    const localY = particle.pos.y - center.y;
-    const faceCos = Math.cos(paper.faceAngle);
-    const pseudoDepth = paper.depthBase
-      + localX * Math.sin(paper.faceAngle) * .34
-      + Math.sin(paper.flutter + row * .9 + column * .7) * paper.ripple;
-    const scale = PERSPECTIVE / (PERSPECTIVE - pseudoDepth);
-    return {
-      x: center.x + localX * faceCos * scale,
-      y: center.y + localY * scale + paper.settleLift,
-      depth: pseudoDepth
-    };
+  const normalizeAngle = (angle) => {
+    return ((angle + Math.PI) % (Math.PI * 2) + Math.PI * 2) % (Math.PI * 2) - Math.PI;
   };
 
-  const buildMesh = (paper) => {
-    const center = paperCenter(paper);
-    const vertices = [];
-    let minX = Infinity;
-    let maxX = -Infinity;
-    let minY = Infinity;
-    let maxY = -Infinity;
-    for (let row = 0; row < paper.segments; row += 1) {
-      const rowVertices = [];
-      for (let column = 0; column < paper.segments; column += 1) {
-        const vertex = projectParticle(
-          paper,
-          paper.composite.particles[row * paper.segments + column],
-          row,
-          column,
-          center
-        );
-        rowVertices.push(vertex);
-        minX = Math.min(minX, vertex.x);
-        maxX = Math.max(maxX, vertex.x);
-        minY = Math.min(minY, vertex.y);
-        maxY = Math.max(maxY, vertex.y);
-      }
-      vertices.push(rowVertices);
-    }
-    return {
-      paper,
-      vertices,
-      minX,
-      maxX,
-      minY,
-      maxY,
-      facingBack: Math.cos(paper.faceAngle) < 0
-    };
-  };
-
-  const drawTexturedTriangle = (texture, source, destination) => {
-    const denominator = (source[0].x - source[2].x) * (source[1].y - source[2].y)
-      - (source[1].x - source[2].x) * (source[0].y - source[2].y);
-    if (Math.abs(denominator) < .001) return;
-    const a = ((destination[0].x - destination[2].x) * (source[1].y - source[2].y)
-      - (destination[1].x - destination[2].x) * (source[0].y - source[2].y)) / denominator;
-    const c = ((destination[1].x - destination[2].x) * (source[0].x - source[2].x)
-      - (destination[0].x - destination[2].x) * (source[1].x - source[2].x)) / denominator;
-    const e = destination[2].x - a * source[2].x - c * source[2].y;
-    const b = ((destination[0].y - destination[2].y) * (source[1].y - source[2].y)
-      - (destination[1].y - destination[2].y) * (source[0].y - source[2].y)) / denominator;
-    const d = ((destination[1].y - destination[2].y) * (source[0].x - source[2].x)
-      - (destination[0].y - destination[2].y) * (source[1].x - source[2].x)) / denominator;
-    const f = destination[2].y - b * source[2].x - d * source[2].y;
+  const drawPaperShadow = (paper, size, crowded) => {
+    const distance = Math.max(0, size.floorTop - paper.y);
+    const alpha = crowded
+      ? clamp(.1 - distance / (size.height * 4), .018, .08)
+      : clamp(.2 - distance / (size.height * 3), .025, .18);
     context.save();
+    context.globalAlpha = alpha;
+    context.fillStyle = "rgba(45, 47, 43, .72)";
     context.beginPath();
-    context.moveTo(destination[0].x, destination[0].y);
-    context.lineTo(destination[1].x, destination[1].y);
-    context.lineTo(destination[2].x, destination[2].y);
-    context.closePath();
-    context.clip();
-    context.setTransform(pixelRatio * a, pixelRatio * b, pixelRatio * c, pixelRatio * d, pixelRatio * e, pixelRatio * f);
-    context.drawImage(texture, 0, 0);
-    context.restore();
-  };
-
-  const drawPaperShadow = (mesh, size) => {
-    const distance = Math.max(0, size.floorTop - mesh.maxY);
-    const width = clamp((mesh.maxX - mesh.minX) * .34, 18, 180);
-    const depthScale = clamp(PERSPECTIVE / (PERSPECTIVE - mesh.paper.depthBase), .65, 1.15);
-    context.save();
-    context.globalAlpha = clamp(.22 - distance / (size.height * 3), .035, .2);
-    context.fillStyle = "rgba(45, 47, 43, .78)";
-    context.filter = "blur(" + Math.round(7 + distance / 85) + "px)";
-    context.beginPath();
-    context.ellipse((mesh.minX + mesh.maxX) / 2, size.floorTop + 11, width * depthScale, 7 * depthScale, 0, 0, Math.PI * 2);
+    context.ellipse(paper.x, size.floorTop + 10, paper.width * .31 * paper.scale, 5 * paper.scale, 0, 0, Math.PI * 2);
     context.fill();
     context.restore();
   };
 
-  const drawPaper = (mesh) => {
-    const paper = mesh.paper;
-    const texture = mesh.facingBack ? paper.textureBack : paper.textureFront;
+  const drawPaper = (paper, crowded) => {
+    const texture = paper.side === "back" ? paper.textureBack : paper.textureFront;
     if (!imageReady(texture)) return;
+
     const textureWidth = texture.naturalWidth || texture.width;
     const textureHeight = texture.naturalHeight || texture.height;
-    const oldFilter = context.filter;
-    context.globalAlpha = clamp(.72 + (paper.depthBase + 140) / 1000, .42, .98);
-    context.filter = paper.backIsFallback && mesh.facingBack ? "brightness(.67) saturate(.78)" : "none";
-    for (let row = 0; row < paper.segments - 1; row += 1) {
-      for (let column = 0; column < paper.segments - 1; column += 1) {
-        const u0 = column / (paper.segments - 1);
-        const u1 = (column + 1) / (paper.segments - 1);
-        const v0 = row / (paper.segments - 1);
-        const v1 = (row + 1) / (paper.segments - 1);
-        const sourceU0 = mesh.facingBack ? 1 - u0 : u0;
-        const sourceU1 = mesh.facingBack ? 1 - u1 : u1;
-        const source = [
-          { x: sourceU0 * textureWidth, y: v0 * textureHeight },
-          { x: sourceU1 * textureWidth, y: v0 * textureHeight },
-          { x: sourceU1 * textureWidth, y: v1 * textureHeight },
-          { x: sourceU0 * textureWidth, y: v1 * textureHeight }
-        ];
-        const topLeft = mesh.vertices[row][column];
-        const topRight = mesh.vertices[row][column + 1];
-        const bottomRight = mesh.vertices[row + 1][column + 1];
-        const bottomLeft = mesh.vertices[row + 1][column];
-        drawTexturedTriangle(texture, [source[0], source[1], source[2]], [topLeft, topRight, bottomRight]);
-        drawTexturedTriangle(texture, [source[0], source[2], source[3]], [topLeft, bottomRight, bottomLeft]);
-        const averageDepth = (topLeft.depth + topRight.depth + bottomRight.depth + bottomLeft.depth) / 4;
-        const shadeAlpha = clamp(Math.abs(averageDepth - paper.depthBase) / 180, .01, .1);
-        context.save();
-        context.beginPath();
-        context.moveTo(topLeft.x, topLeft.y);
-        context.lineTo(topRight.x, topRight.y);
-        context.lineTo(bottomRight.x, bottomRight.y);
-        context.lineTo(bottomLeft.x, bottomLeft.y);
-        context.closePath();
-        context.clip();
-        context.fillStyle = averageDepth > paper.depthBase
-          ? "rgba(255, 255, 255, " + shadeAlpha + ")"
-          : "rgba(28, 39, 32, " + shadeAlpha + ")";
-        context.fill();
-        context.restore();
-      }
-    }
-    context.filter = oldFilter;
-    context.globalAlpha = 1;
+    const stripCount = crowded ? 3 : 4;
+    const stripWidth = paper.width / stripCount;
+    const halfWidth = paper.width / 2;
+    const halfHeight = paper.height / 2;
+    const bend = paper.bend * (paper.phase === "landed" ? .62 : 1);
+    const previousAlpha = context.globalAlpha;
+
     context.save();
-    context.strokeStyle = "rgba(34, 36, 33, .4)";
-    context.lineWidth = .9;
+    context.translate(paper.x, paper.y + paper.settleLift);
+    context.rotate(paper.rotation);
+    context.scale(paper.scale, paper.scale);
+    context.globalAlpha = paper.opacity;
+
+    for (let index = 0; index < stripCount; index += 1) {
+      const x0 = -halfWidth + index * stripWidth;
+      const x1 = x0 + stripWidth;
+      const wave0 = Math.sin(paper.wave + index * 1.13) * bend;
+      const wave1 = Math.sin(paper.wave + (index + 1) * 1.13) * bend;
+      const top0 = -halfHeight + wave0;
+      const top1 = -halfHeight + wave1;
+      const bottom0 = halfHeight + Math.sin(paper.wave * .77 + index * 1.17) * bend * .62;
+      const bottom1 = halfHeight + Math.sin(paper.wave * .77 + (index + 1) * 1.17) * bend * .62;
+      const sourceX = index * textureWidth / stripCount;
+      const sourceWidth = textureWidth / stripCount;
+
+      context.save();
+      context.beginPath();
+      context.moveTo(x0, top0);
+      context.lineTo(x1, top1);
+      context.lineTo(x1, bottom1);
+      context.lineTo(x0, bottom0);
+      context.closePath();
+      context.clip();
+      context.drawImage(
+        texture,
+        sourceX,
+        0,
+        sourceWidth + 1,
+        textureHeight,
+        x0 - 1,
+        -halfHeight - 2,
+        stripWidth + 2,
+        paper.height + 4
+      );
+      context.restore();
+    }
+
     context.beginPath();
-    context.moveTo(mesh.vertices[0][0].x, mesh.vertices[0][0].y);
-    for (let column = 1; column < paper.segments; column += 1) {
-      context.lineTo(mesh.vertices[0][column].x, mesh.vertices[0][column].y);
+    context.moveTo(-halfWidth, -halfHeight + Math.sin(paper.wave) * bend);
+    for (let index = 1; index <= stripCount; index += 1) {
+      const x = -halfWidth + index * stripWidth;
+      context.lineTo(x, -halfHeight + Math.sin(paper.wave + index * 1.13) * bend);
     }
-    for (let row = 1; row < paper.segments; row += 1) {
-      context.lineTo(mesh.vertices[row][paper.segments - 1].x, mesh.vertices[row][paper.segments - 1].y);
-    }
-    for (let column = paper.segments - 2; column >= 0; column -= 1) {
-      context.lineTo(mesh.vertices[paper.segments - 1][column].x, mesh.vertices[paper.segments - 1][column].y);
-    }
-    for (let row = paper.segments - 2; row > 0; row -= 1) {
-      context.lineTo(mesh.vertices[row][0].x, mesh.vertices[row][0].y);
+    for (let index = stripCount; index >= 0; index -= 1) {
+      const x = -halfWidth + index * stripWidth;
+      context.lineTo(x, halfHeight + Math.sin(paper.wave * .77 + index * 1.17) * bend * .62);
     }
     context.closePath();
+    context.strokeStyle = "rgba(34, 36, 33, .42)";
+    context.lineWidth = .9;
     context.stroke();
+
+    context.strokeStyle = "rgba(255, 255, 255, .24)";
+    context.lineWidth = .7;
+    for (let index = 1; index < stripCount; index += 1) {
+      const x = -halfWidth + index * stripWidth;
+      const crease = Math.sin(paper.wave + index * 1.13) * bend;
+      context.beginPath();
+      context.moveTo(x, -halfHeight + crease + 2);
+      context.lineTo(x, halfHeight + Math.sin(paper.wave * .77 + index * 1.17) * bend * .62 - 2);
+      context.stroke();
+    }
+
+    context.globalAlpha = previousAlpha;
     context.restore();
   };
 
   const drawScene = () => {
     const size = stageSize();
+    const crowded = notes.size > 60 || spawnQueue.length > 60;
     context.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0);
     context.globalAlpha = 1;
-    context.filter = "none";
     context.clearRect(0, 0, size.width, size.height);
+
     const orderedNotes = Array.from(notes).sort((left, right) => {
-      return left.level - right.level || left.depthBase - right.depthBase;
+      return left.level - right.level || left.depth - right.depth;
     });
-    const meshes = orderedNotes.map(buildMesh);
-    meshes.forEach((mesh) => drawPaperShadow(mesh, size));
-    meshes.forEach(drawPaper);
+    orderedNotes.forEach((paper) => drawPaperShadow(paper, size, crowded));
+    orderedNotes.forEach((paper) => drawPaper(paper, crowded));
     root.dataset.noteCount = String(notes.size);
     root.dataset.activeDrops = String(activeDrops());
   };
 
-  const removeNote = (paper) => {
-    removeComposite(paper);
-    notes.delete(paper);
-  };
-
-  const removeFromLanded = (paper) => {
-    const index = landedNotes.indexOf(paper);
-    if (index >= 0) landedNotes.splice(index, 1);
-  };
-
   const trimNotes = () => {
-    while (notes.size > MAX_NOTES && landedNotes.length) removeNote(landedNotes.shift());
-  };
-
-  const normalizeAngle = (angle) => {
-    return ((angle + Math.PI) % (Math.PI * 2) + Math.PI * 2) % (Math.PI * 2) - Math.PI;
+    while (notes.size > MAX_NOTES && landedNotes.length) {
+      const oldest = landedNotes.shift();
+      if (oldest) notes.delete(oldest);
+    }
   };
 
   const landPaper = (paper) => {
     if (paper.phase === "landed" || paper.phase === "settling") return;
-    const size = stageSize();
-    const bottom = paperBottom(paper);
-    moveComposite(paper, 0, targetBottom(paper, size) - bottom);
     paper.phase = "settling";
     paper.settleProgress = reducedMotion.matches ? 1 : 0;
+    paper.settleStartRotation = paper.rotation;
+    paper.settleTargetRotation = paper.rotation + normalizeAngle((Math.random() - .5) * .36 - paper.rotation);
+    paper.settleStartBend = paper.bend;
+    paper.settleTargetBend = 2 + Math.random() * 4;
     paper.settleLift = 0;
-    paper.faceStart = paper.faceAngle;
-    paper.faceTarget = Math.cos(paper.faceAngle) >= 0 ? 0 : Math.PI;
-    paper.faceDelta = normalizeAngle(paper.faceTarget - paper.faceStart);
-    paper.floorTopAtRest = size.floorTop;
-    removeComposite(paper);
+    paper.vx = 0;
+    paper.vy = 0;
+    paper.vrotation = 0;
+    paper.bounceCount = 0;
   };
 
   const createPaper = (level) => {
     const width = stage.clientWidth < 650 ? 164 : 220;
     const height = width * .5625;
-    const segments = notes.size + spawnQueue.length > 60 ? 5 : 6;
+    const hasBack = imageReady(textures.back);
     return {
       level,
       width,
       height,
-      segments,
-      composite: null,
+      x: 0,
+      y: 0,
+      targetX: 0,
+      targetY: 0,
+      vx: 0,
+      vy: 0,
+      rotation: (Math.random() - .5) * .65,
+      vrotation: (Math.random() - .5) * .055,
+      wave: Math.random() * Math.PI * 2,
+      bend: 8 + Math.random() * 12,
+      scale: .88 + Math.random() * .18,
+      opacity: .76 + Math.random() * .2,
+      depth: Math.random() * 100,
+      side: hasBack && Math.random() > .58 ? "back" : "front",
       phase: "falling",
       bounceCount: 0,
-      faceAngle: Math.random() * Math.PI * 2,
-      faceVelocity: (Math.random() - .5) * .055,
-      flutter: Math.random() * Math.PI * 2,
-      ripple: 5 + Math.random() * 8,
-      depthBase: -120 + Math.random() * 230,
+      settleProgress: 0,
       settleLift: 0,
-      targetX: 0,
+      settleStartRotation: 0,
+      settleTargetRotation: 0,
+      settleStartBend: 0,
+      settleTargetBend: 0,
       textureFront: currentFrontTexture(),
       textureBack: currentBackTexture(),
-      backIsFallback: !textures.back,
       uploaded: Boolean(textures.front),
       runId: currentRun
     };
@@ -434,102 +315,86 @@
     if (runId !== currentRun) return;
     const paper = createPaper(level);
     const size = stageSize();
-    const startX = paper.width / 2 + Math.random() * Math.max(1, size.width - paper.width);
-    const startY = -paper.height / 2 - Math.random() * 115;
+    const floor = size.floorTop - paper.height / 2 - Math.min(level, 110) * 1.15;
+    paper.x = paper.width / 2 + Math.random() * Math.max(1, size.width - paper.width);
+    paper.y = -paper.height / 2 - Math.random() * 110;
     paper.targetX = paper.width / 2 + Math.random() * Math.max(1, size.width - paper.width);
-    paper.composite = engine.cloth(new Vec2(startX, startY), paper.width, paper.height, paper.segments, 0, .9);
-    const vx = (paper.targetX - startX) * .0011 + (Math.random() - .5) * 1.55;
-    const vy = .55 + Math.random() * .7;
-    paper.composite.particles.forEach((particle, index) => {
-      const column = index % paper.segments;
-      const row = Math.floor(index / paper.segments);
-      particle.pos.y += Math.sin(column / Math.max(1, paper.segments - 1) * Math.PI) * 2.3;
-      particle.lastPos.x = particle.pos.x - vx - (column - row) * .03;
-      particle.lastPos.y = particle.pos.y - vy;
-    });
+    paper.targetY = floor;
+    paper.vx = (paper.targetX - paper.x) * .001 + (Math.random() - .5) * 1.4;
+    paper.vy = .55 + Math.random() * .65;
     notes.add(paper);
     if (reducedMotion.matches) landPaper(paper);
   };
 
-  const applyAir = (paper, timeScale) => {
-    if (paper.phase !== "falling") return;
-    const center = paperCenter(paper);
-    paper.composite.particles.forEach((particle, index) => {
-      const row = Math.floor(index / paper.segments);
-      const column = index % paper.segments;
-      const localX = (particle.pos.x - center.x) / paper.width;
-      const gust = wind * (.008 + Math.abs(localX) * .006) * timeScale;
-      const ripple = Math.sin(clock * .12 + row * .8 + column * .65 + paper.flutter) * .018 * timeScale;
-      particle.pos.x += gust;
-      particle.lastPos.x += gust * .22;
-      particle.pos.y += ripple;
-    });
-    paper.faceVelocity += wind * .00018 * timeScale;
-    paper.faceVelocity *= Math.pow(.998, timeScale);
-    paper.faceVelocity = clamp(paper.faceVelocity, -.085, .085);
-  };
-
-  const enforcePaperFloor = (paper) => {
-    if (paper.phase !== "falling") return;
-    const size = stageSize();
-    const bottom = paperBottom(paper);
-    const floor = targetBottom(paper, size);
-    if (bottom < floor) return;
-    moveComposite(paper, 0, floor - bottom);
-    const downwardSpeed = paperBottomVelocity(paper);
-    if (paper.bounceCount < 2 && downwardSpeed > 1.15) {
-      const rebound = Math.min(4.2, downwardSpeed * .26);
-      paper.composite.particles.forEach((particle) => {
-        particle.lastPos.y = particle.pos.y + rebound;
-      });
-      paper.bounceCount += 1;
-      return;
-    }
-    landPaper(paper);
-  };
-
   const updatePaper = (paper, timeScale) => {
     if (paper.phase === "landed") return;
+
     if (paper.phase === "settling") {
-      paper.settleProgress = clamp(paper.settleProgress + timeScale / 16, 0, 1);
+      paper.settleProgress = clamp(paper.settleProgress + timeScale / 15, 0, 1);
       const eased = 1 - Math.pow(1 - paper.settleProgress, 3);
-      paper.faceAngle = paper.faceStart + paper.faceDelta * eased;
-      paper.settleLift = -Math.sin(Math.PI * paper.settleProgress) * 4;
+      paper.rotation = paper.settleStartRotation
+        + normalizeAngle(paper.settleTargetRotation - paper.settleStartRotation) * eased;
+      paper.bend = paper.settleStartBend + (paper.settleTargetBend - paper.settleStartBend) * eased;
+      paper.settleLift = -Math.sin(Math.PI * paper.settleProgress) * 3.2;
       if (paper.settleProgress >= 1) {
         paper.phase = "landed";
+        paper.y = paper.targetY;
         paper.settleLift = 0;
         landedNotes.push(paper);
         trimNotes();
       }
       return;
     }
-    paper.faceAngle += paper.faceVelocity * timeScale;
-    paper.flutter += (.06 + Math.abs(paperBottomVelocity(paper)) * .012) * timeScale;
-    paper.ripple = clamp(paper.ripple + Math.sin(clock * .08 + paper.flutter) * .06 * timeScale, 3, 18);
-    enforcePaperFloor(paper);
-  };
 
-  const activeDrops = () => spawnQueue.length
-    + Array.from(notes).filter((paper) => paper.phase !== "landed").length;
+    const stageSizeNow = stageSize();
+    const air = wind * .012 * timeScale;
+    const steering = (paper.targetX - paper.x) * .00022 * timeScale;
+    paper.vx += air + steering;
+    paper.vx *= Math.pow(.993, timeScale);
+    paper.vy += .18 * timeScale;
+    paper.vy *= Math.pow(.998, timeScale);
+    paper.x += paper.vx * timeScale;
+    paper.y += paper.vy * timeScale;
+    paper.rotation += paper.vrotation * timeScale;
+    paper.wave += (.08 + Math.abs(paper.vy) * .018) * timeScale;
+    paper.bend = clamp(
+      paper.bend + (Math.sin(paper.wave * 1.31) * .12 + wind * .012) * timeScale,
+      2,
+      22
+    );
+    paper.vrotation *= Math.pow(.997, timeScale);
+
+    if (paper.x < -paper.width * .4 || paper.x > stageSizeNow.width + paper.width * .4) {
+      paper.vx *= -.72;
+    }
+
+    if (paper.y >= paper.targetY && paper.vy > 0) {
+      paper.y = paper.targetY;
+      paper.vy = -Math.abs(paper.vy) * .22;
+      paper.vx *= .62;
+      paper.vrotation *= .52;
+      paper.bounceCount += 1;
+      if (paper.bounceCount >= 2 || Math.abs(paper.vy) < .72) landPaper(paper);
+    }
+  };
 
   const tick = (timestamp) => {
     frameId = 0;
-    const timeScale = lastFrameTime ? clamp((timestamp - lastFrameTime) / 16.67, .5, 3) : 1;
+    const timeScale = lastFrameTime ? clamp((timestamp - lastFrameTime) / 16.67, .5, 2.4) : 1;
     lastFrameTime = timestamp;
     clock += timeScale;
-    const batchSize = reducedMotion.matches ? spawnQueue.length : (activeDrops() > 60 ? 5 : 3);
+
+    const batchSize = reducedMotion.matches ? spawnQueue.length : (activeDrops() > 60 ? 12 : 4);
     for (let index = 0; index < batchSize && spawnQueue.length; index += 1) {
       const item = spawnQueue.shift();
       if (item.runId === currentRun) spawnPaper(item.level, item.runId);
     }
-    wind += (windTarget - wind) * .06;
+
+    wind += (windTarget - wind) * .07;
     windTarget *= .94;
-    notes.forEach((paper) => applyAir(paper, timeScale));
-    if (Array.from(notes).some((paper) => paper.phase === "falling")) {
-      engine.frame(activeDrops() > 60 ? 7 : 10);
-    }
     notes.forEach((paper) => updatePaper(paper, timeScale));
     drawScene();
+
     if (spawnQueue.length || Array.from(notes).some((paper) => paper.phase !== "landed")) {
       frameId = window.requestAnimationFrame(tick);
     } else {
@@ -566,23 +431,26 @@
     const bounds = stage.getBoundingClientRect();
     const x = event.clientX - bounds.left;
     const y = event.clientY - bounds.top;
+
     landedNotes.slice().forEach((paper) => {
-      const center = paperCenter(paper);
-      const distance = Math.hypot(center.x - x, center.y - y);
-      if (distance > 250) return;
+      const distance = Math.hypot(paper.x - x, paper.y - y);
+      if (distance > 240) return;
+      const lift = 1.2 + Math.max(0, (240 - distance) / 240) * 2.3;
       removeFromLanded(paper);
       paper.phase = "falling";
       paper.bounceCount = 0;
-      addComposite(paper);
-      const kickX = (center.x - x) * .012 + (Math.random() - .5) * 1.2;
-      const kickY = 1.6 + Math.max(0, (250 - distance) / 250) * 2.3;
-      paper.composite.particles.forEach((particle) => {
-        particle.lastPos.x = particle.pos.x - kickX;
-        particle.lastPos.y = particle.pos.y + kickY;
-      });
+      paper.vx += (paper.x - x) * .008;
+      paper.vy = -lift;
+      paper.vrotation += (Math.random() - .5) * .09;
+      paper.bend += 3;
     });
     setStatus("地面被碰了一下，纸张重新找位置。");
     schedule();
+  };
+
+  const removeFromLanded = (paper) => {
+    const index = landedNotes.indexOf(paper);
+    if (index >= 0) landedNotes.splice(index, 1);
   };
 
   const acceptedFile = (file) => Boolean(file && /^image\/(jpeg|png|webp)$/.test(file.type) && file.size <= 8 * 1024 * 1024);
@@ -644,7 +512,6 @@
   clearButton.addEventListener("click", () => {
     currentRun += 1;
     spawnQueue.splice(0);
-    engine.composites.splice(0);
     notes.clear();
     landedNotes.splice(0);
     wind = 0;
