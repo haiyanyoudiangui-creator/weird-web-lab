@@ -23,6 +23,7 @@
   };
   const currencyKeys = Object.keys(currencies);
   const MAX_NOTES = 280;
+  const PAPER_SEGMENTS = 5;
   const notes = new Set();
   const landedNotes = [];
   const spawnQueue = [];
@@ -76,13 +77,27 @@
     return face;
   };
 
-  const createImageFace = (url) => {
+  const createPaperFace = (side, currency, imageUrl) => {
     const face = document.createElement("div");
-    const image = document.createElement("img");
-    face.appendChild(image);
-    image.src = url;
-    image.alt = "";
-    image.draggable = false;
+    face.className = "paper-face " + side;
+    for (let index = 0; index < PAPER_SEGMENTS; index += 1) {
+      const strip = document.createElement("div");
+      strip.className = "paper-strip";
+      strip.dataset.segment = String(index);
+      if (imageUrl) {
+        const image = document.createElement("img");
+        image.src = imageUrl;
+        image.alt = "";
+        image.draggable = false;
+        image.style.left = (-index * 100) + "%";
+        strip.appendChild(image);
+      } else {
+        const sample = createSampleFace(currency);
+        sample.style.left = (-index * 100) + "%";
+        strip.appendChild(sample);
+      }
+      face.appendChild(strip);
+    }
     return face;
   };
 
@@ -90,22 +105,12 @@
     const currency = currencies[selectedCurrency];
     const element = document.createElement("div");
     const shadow = document.createElement("div");
-    const front = document.createElement("div");
-    const back = document.createElement("div");
-    const frontContent = imageUrls.front ? createImageFace(imageUrls.front) : createSampleFace(currency);
-    const backContent = imageUrls.back
-      ? createImageFace(imageUrls.back)
-      : imageUrls.front
-        ? createImageFace(imageUrls.front)
-        : createSampleFace(currency);
+    const front = createPaperFace("front", currency, imageUrls.front);
+    const back = createPaperFace("back", currency, imageUrls.back || imageUrls.front);
 
     element.className = "paper-note currency-" + currency.color + (imageUrls.back ? " has-back" : "");
     element.setAttribute("aria-hidden", "true");
     shadow.className = "paper-shadow";
-    front.className = "paper-face front";
-    back.className = "paper-face back";
-    front.appendChild(frontContent);
-    back.appendChild(backContent);
     element.appendChild(front);
     element.appendChild(back);
     floor.appendChild(shadow);
@@ -130,6 +135,12 @@
       vrx: 0,
       vry: 0,
       vrz: 0,
+      foldY: 0,
+      foldX: 0,
+      foldVelocityY: 0,
+      foldVelocityX: 0,
+      flutter: Math.random() * Math.PI * 2,
+      strips: Array.from(element.querySelectorAll(".paper-strip")),
       bounceCount: 0,
       phase: "falling",
       runId: currentRun
@@ -140,12 +151,22 @@
     const size = stageSize();
     const scale = Math.max(.66, Math.min(1.12, .82 + (paper.z + 180) / 720));
     const shadowScale = Math.max(.5, Math.min(1.15, scale * (1 - Math.abs(paper.z) / 800)));
-    const shadowY = size.height - size.floorHeight + 10;
+    const shadowY = size.height - size.floorHeight + 9;
     paper.element.style.zIndex = String(10 + Math.max(0, Math.round(paper.z + paper.level)));
+    paper.element.dataset.phase = paper.phase;
     paper.element.style.transform = "translate3d(" + paper.x.toFixed(1) + "px, " + paper.y.toFixed(1) + "px, " + paper.z.toFixed(1) + "px) rotateX(" + paper.rx.toFixed(2) + "deg) rotateY(" + paper.ry.toFixed(2) + "deg) rotateZ(" + paper.rz.toFixed(2) + "deg) scale(" + scale.toFixed(3) + ")";
-    paper.shadow.style.width = (paper.element.offsetWidth || 190) * shadowScale + "px";
-    paper.shadow.style.transform = "translate3d(" + (paper.x + (paper.element.offsetWidth || 190) * (1 - shadowScale) / 2).toFixed(1) + "px, " + shadowY.toFixed(1) + "px, 0) rotate(" + paper.rz.toFixed(2) + "deg) scaleY(" + Math.max(.35, shadowScale * .7).toFixed(3) + ")";
-    paper.shadow.style.opacity = String(Math.max(.08, Math.min(.3, .22 * shadowScale)));
+    const noteWidth = paper.element.offsetWidth || 212;
+    paper.shadow.style.width = noteWidth * shadowScale + "px";
+    paper.shadow.style.transform = "translate3d(" + (paper.x + noteWidth * (1 - shadowScale) / 2).toFixed(1) + "px, " + shadowY.toFixed(1) + "px, 0) rotate(" + paper.rz.toFixed(2) + "deg) scaleY(" + Math.max(.35, shadowScale * .7).toFixed(3) + ")";
+    paper.shadow.style.opacity = String(Math.max(.08, Math.min(.3, .22 * shadowScale * (1 - Math.min(.55, Math.abs(paper.y - (size.height - size.floorHeight)) / size.height)))));
+    const center = (PAPER_SEGMENTS - 1) / 2;
+    paper.strips.forEach((strip, index) => {
+      const across = (index % PAPER_SEGMENTS) - center;
+      const yaw = across * paper.foldY;
+      const pitch = Math.sin((index % PAPER_SEGMENTS) / (PAPER_SEGMENTS - 1) * Math.PI) * paper.foldX;
+      const lift = Math.abs(yaw) * .42;
+      strip.style.transform = "translateZ(" + lift.toFixed(2) + "px) rotateY(" + yaw.toFixed(2) + "deg) rotateX(" + pitch.toFixed(2) + "deg)";
+    });
   };
 
   const landPaper = (paper) => {
@@ -159,6 +180,10 @@
     paper.vrx = 0;
     paper.vry = 0;
     paper.vrz = 0;
+    paper.foldY *= .35;
+    paper.foldX *= .35;
+    paper.foldVelocityY = 0;
+    paper.foldVelocityX = 0;
     landedNotes.push(paper);
     trimNotes();
     renderPaper(paper);
@@ -168,14 +193,14 @@
     if (runId !== currentRun) return;
     const paper = createPaper(level);
     const size = stageSize();
-    const noteWidth = paper.element.offsetWidth || 190;
-    const noteHeight = paper.element.offsetHeight || 108;
+    const noteWidth = paper.element.offsetWidth || 212;
+    const noteHeight = paper.element.offsetHeight || 120;
     const floorTop = size.height - size.floorHeight;
     paper.x = Math.max(8, Math.random() * Math.max(12, size.width - noteWidth - 16));
     paper.y = -noteHeight - Math.random() * 90;
     paper.z = -120 + Math.random() * 180;
     paper.targetX = Math.max(8, Math.random() * Math.max(12, size.width - noteWidth - 16));
-    paper.targetY = floorTop - noteHeight / 2 - Math.min(level, 110) * 1.55;
+    paper.targetY = floorTop - noteHeight - Math.min(level, 110) * 1.55;
     paper.targetZ = (level % 9) * 3 + Math.random() * 8;
     paper.vx = (Math.random() - .5) * 1.4;
     paper.vy = Math.random() * .6;
@@ -186,6 +211,10 @@
     paper.vrx = (Math.random() - .5) * 4.5;
     paper.vry = (Math.random() - .5) * 5.2;
     paper.vrz = (Math.random() - .5) * 3.5;
+    paper.foldY = (Math.random() - .5) * 16;
+    paper.foldX = (Math.random() - .5) * 10;
+    paper.foldVelocityY = (Math.random() - .5) * 1.8;
+    paper.foldVelocityX = (Math.random() - .5) * 1.2;
     notes.add(paper);
     renderPaper(paper);
     if (reducedMotion.matches) landPaper(paper);
@@ -205,6 +234,15 @@
     paper.rx += paper.vrx;
     paper.ry += paper.vry;
     paper.rz += paper.vrz;
+    paper.flutter += .06 + Math.abs(paper.vy) * .008;
+    paper.foldVelocityY += Math.sin(paper.flutter) * .035 + wind * .004;
+    paper.foldVelocityX += Math.cos(paper.flutter * .83) * .025;
+    paper.foldVelocityY *= .96;
+    paper.foldVelocityX *= .96;
+    paper.foldY += paper.foldVelocityY;
+    paper.foldX += paper.foldVelocityX;
+    paper.foldY = Math.max(-24, Math.min(24, paper.foldY));
+    paper.foldX = Math.max(-15, Math.min(15, paper.foldX));
     paper.vrx *= .997;
     paper.vry *= .997;
     paper.vrz *= .997;
@@ -335,7 +373,7 @@
   clearButton.addEventListener("click", () => {
     currentRun += 1;
     spawnQueue.splice(0);
-    notes.forEach(removeNote);
+    Array.from(notes).forEach(removeNote);
     notes.clear();
     landedNotes.splice(0);
     wind = 0;
@@ -357,8 +395,8 @@
   window.addEventListener("resize", () => {
     notes.forEach((paper) => {
       const size = stageSize();
-      const noteHeight = paper.element.offsetHeight || 108;
-      paper.targetY = size.height - size.floorHeight - noteHeight / 2 - Math.min(paper.level, 110) * 1.55;
+      const noteHeight = paper.element.offsetHeight || 120;
+      paper.targetY = size.height - size.floorHeight - noteHeight - Math.min(paper.level, 110) * 1.55;
       if (paper.phase === "landed") paper.y = paper.targetY;
       renderPaper(paper);
     });
