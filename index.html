@@ -7,38 +7,65 @@
   <title>weird-web-lab · 奇怪网页实验室</title>
   <link rel="stylesheet" href="assets/site.css">
 </head>
-<body>
+<body data-weird-lab>
+  <div class="cursor-glow" data-cursor-glow aria-hidden="true"></div>
+  <div class="ambient-lines" aria-hidden="true"></div>
+
   <div class="site-shell">
     <header class="hero">
-      <p class="eyebrow">HTML EXPERIMENTS / 公开实验室</p>
-      <h1>weird-web-lab</h1>
-      <p class="hero-copy">一些没有必要存在，但做出来很有意思的网页。</p>
-      <div class="hero-meta">
-        <span>静态网页</span>
-        <span>独立文件夹</span>
-        <span>持续生长</span>
+      <div class="hero-halo hero-halo-one" aria-hidden="true"></div>
+      <div class="hero-halo hero-halo-two" aria-hidden="true"></div>
+      <div class="hero-orbit hero-orbit-one" aria-hidden="true"><span></span></div>
+      <div class="hero-orbit hero-orbit-two" aria-hidden="true"><span></span></div>
+      <span class="hero-spark hero-spark-one" aria-hidden="true">✦</span>
+      <span class="hero-spark hero-spark-two" aria-hidden="true">+</span>
+      <span class="hero-spark hero-spark-three" aria-hidden="true">·</span>
+
+      <div class="hero-content">
+        <p class="eyebrow"><span class="eyebrow-dot"></span> HTML EXPERIMENTS / 公开实验室</p>
+        <div class="title-row">
+          <h1><span>weird</span><span class="title-blue">-web-</span><span>lab</span></h1>
+          <span class="title-stamp">NO REASON<br>// ALL CURIOSITY</span>
+        </div>
+        <p class="hero-copy">一些没有必要存在，但做出来很有意思的网页。<br><em>每一次点击，都可能打开一扇不太正经的门。</em></p>
+
+        <div class="hero-tools">
+          <button class="whisper-button" type="button" data-whisper-button>
+            <span class="button-orbit" aria-hidden="true">✦</span>
+            <span>给我一个奇怪点子</span>
+            <span class="button-arrow" aria-hidden="true">↗</span>
+          </button>
+          <p class="whisper-output" data-whisper aria-live="polite">实验室正在等待一个不合常理的想法……</p>
+        </div>
+
+        <div class="hero-meta" aria-label="实验室特征">
+          <span><i></i> 浏览器内运行</span>
+          <span>独立文件夹</span>
+          <span>持续生长</span>
+        </div>
       </div>
     </header>
 
     <main>
-      <section class="directory-section">
+      <section class="directory-section panel-section">
         <div class="section-heading">
           <div>
-            <p class="section-label">INDEX</p>
+            <p class="section-label">INDEX / 001</p>
             <h2>实验目录</h2>
           </div>
-          <span class="count-badge">1 experiment</span>
+          <span class="count-badge"><span class="count-dot"></span> 1 experiment</span>
         </div>
 
         <div class="experiment-grid">
-          <a class="experiment-link" href="experiments/evolution-road/">
+          <a class="experiment-link" href="experiments/evolution-road/" data-lab-card>
+            <span class="experiment-sheen" aria-hidden="true"></span>
             <span class="experiment-number">01</span>
             <span class="experiment-info">
               <span class="experiment-kicker">寓言学习 · 多页面故事集</span>
               <strong>进化之路</strong>
               <span>用不同领域的概念和寓言故事，练习理解世界与处理事情的方法。</span>
             </span>
-            <span class="experiment-arrow">↗</span>
+            <span class="experiment-arrow" aria-hidden="true">↗</span>
           </a>
         </div>
 
@@ -47,18 +74,19 @@
         </div>
       </section>
 
-      <section class="rules-section">
+      <section class="rules-section panel-section">
         <p class="section-label">HOW IT GROWS</p>
         <h2>这里的秩序</h2>
         <div class="rule-grid">
-          <div class="rule-card"><strong>一个网页，一个文件夹</strong><span>页面和专属资源始终放在一起。</span></div>
-          <div class="rule-card"><strong>首页只做导航</strong><span>实验内容留在自己的独立页面里。</span></div>
-          <div class="rule-card"><strong>奇怪，但不混乱</strong><span>每个实验都有清楚的名称和入口。</span></div>
+          <div class="rule-card"><span class="rule-number">01</span><strong>一个网页，一个文件夹</strong><span>页面和专属资源始终放在一起。</span></div>
+          <div class="rule-card"><span class="rule-number">02</span><strong>首页只做导航</strong><span>实验内容留在自己的独立页面里。</span></div>
+          <div class="rule-card"><span class="rule-number">03</span><strong>奇怪，但不混乱</strong><span>每个实验都有清楚的名称和入口。</span></div>
         </div>
       </section>
     </main>
 
-    <footer>weird-web-lab · made for curious accidents</footer>
+    <footer><span class="footer-orb" aria-hidden="true"></span> weird-web-lab · made for curious accidents</footer>
   </div>
+  <script src="assets/lab.js" defer></script>
 </body>
 </html>
