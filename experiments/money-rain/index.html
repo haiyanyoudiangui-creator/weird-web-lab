@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#17151d">
+  <meta name="description" content="一场不会让你变富，但会产生纸张质感的样票降落实验。">
+  <title>纸钞降落实验 · weird-web-lab</title>
+  <link rel="stylesheet" href="assets/site.css">
+</head>
+<body data-money-lab>
+  <div class="money-shell">
+    <header class="money-header">
+      <a class="back-link" href="../../">← 回到 weird-web-lab</a>
+      <span class="header-note">视觉玩具 / 不是提款机</span>
+    </header>
+
+    <main>
+      <section class="intro">
+        <p class="eyebrow">SECOND STRANGE WEB PAGE</p>
+        <h1>纸钞降落实验</h1>
+        <p class="intro-copy">选择一种币种和数量，让它们从页面上方飘下来，在底部堆成一小团没什么用的纸。</p>
+        <p class="disclaimer"><strong>先说清楚：</strong>页面里的纸钞是虚构样票，明确标注“非法定货币”，不是真实人民币，也不能兑换或使用。</p>
+      </section>
+
+      <section class="control-panel" aria-label="纸钞设置">
+        <div class="control-block">
+          <h2>选择一种纸钞</h2>
+          <div class="option-row currency-row">
+            <button class="option is-selected" type="button" data-currency="cny">人民币 <span>¥</span></button>
+            <button class="option" type="button" data-currency="usd">美元 <span>$</span></button>
+            <button class="option" type="button" data-currency="eur">欧元 <span>€</span></button>
+            <button class="option" type="button" data-currency="jpy">日元 <span>¥</span></button>
+            <button class="option" type="button" data-currency="gbp">英镑 <span>£</span></button>
+            <button class="option" type="button" data-currency="krw">韩元 <span>₩</span></button>
+          </div>
+        </div>
+        <div class="control-block">
+          <h2>一次掉几张</h2>
+          <div class="option-row quantity-row">
+            <button class="option is-selected" type="button" data-quantity="1">1 张</button>
+            <button class="option" type="button" data-quantity="10">10 张</button>
+            <button class="option" type="button" data-quantity="100">100 张</button>
+          </div>
+        </div>
+        <div class="action-row">
+          <button class="drop-button" type="button" data-drop-money>让纸钞掉下来 <span aria-hidden="true">↓</span></button>
+          <button class="clear-button" type="button" data-clear-floor>清空地面</button>
+        </div>
+      </section>
+
+      <section class="money-stage" data-money-stage aria-label="纸钞降落区域">
+        <div class="stage-top">
+          <span>纸张会落在这里</span>
+          <span data-stage-status aria-live="polite">地面很干净。</span>
+        </div>
+        <div class="sky-mark sky-mark-one" aria-hidden="true">✳</div>
+        <div class="sky-mark sky-mark-two" aria-hidden="true">·</div>
+        <div class="floor-line" aria-hidden="true"></div>
+        <div class="floor-shadow" aria-hidden="true"></div>
+        <div class="money-floor" data-money-floor></div>
+        <div class="preview-note currency-cny" data-preview aria-hidden="true">
+          <span class="preview-word">样票</span>
+          <strong data-preview-denomination>¥100</strong>
+          <span class="preview-symbol">¥</span>
+          <small>仅作视觉效果</small>
+        </div>
+        <p class="stage-hint">点击按钮<br>看一场纸张天气</p>
+      </section>
+
+      <section class="footer-note">
+        <span class="tiny-star" aria-hidden="true">✦</span>
+        <p>这里能生成的是纸片，不是财富。真正的一百块还需要你自己去赚。</p>
+      </section>
+    </main>
+  </div>
+  <script src="assets/app.js" defer></script>
+</body>
+</html>
