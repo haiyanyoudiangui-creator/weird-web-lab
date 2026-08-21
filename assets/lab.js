@@ -15,23 +15,21 @@
   const context = canvas.getContext("2d");
   if (!context) return;
 
-  const colors = ["#bbff65", "#78ddff", "#ff75b9", "#a18cff"];
+  const colors = ["#d85d4c", "#526fa7", "#e7b64d", "#7c956e"];
   const messages = [
-    ["它突然意识到自己正在被观察。", "AWARE"],
-    ["它说自己只是一个普通的网页。", "LYING"],
-    ["它把你的光标登记成了新样本。", "NOTED"],
-    ["它想往左走，但暂时没有腿。", "NO LEGS"],
-    ["它开始怀疑实验室到底是谁的。", "UNCERTAIN"]
+    ["它突然意识到自己正在被观察。", "它有点紧张"],
+    ["它说自己只是一个普通的网页。", "它在撒谎"],
+    ["它把你的光标登记成了新样本。", "已记录"],
+    ["它想往左走，但暂时没有腿。", "没有腿"],
+    ["它开始怀疑实验室到底是谁的。", "想不明白"]
   ];
-  const particles = [];
-  const ripples = [];
+  const pieces = [];
   const pointer = { x: window.innerWidth / 2, y: window.innerHeight * .4 };
-  const smoothPointer = { x: pointer.x, y: pointer.y };
   let width = window.innerWidth;
   let height = window.innerHeight;
   let pixelRatio = 1;
   let animationFrame = 0;
-  let lastTrail = 0;
+  let lastPiece = 0;
   let messageIndex = -1;
 
   const resizeCanvas = () => {
@@ -43,45 +41,37 @@
     context.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0);
   };
 
-  const limitParticles = () => {
-    const maximum = width < 700 ? 36 : 78;
-    while (particles.length > maximum) particles.shift();
-  };
-
-  const addParticles = (x, y, amount = 1, force = 1) => {
+  const addPieces = (x, y, amount = 1, force = 1) => {
     for (let index = 0; index < amount; index += 1) {
       const angle = Math.random() * Math.PI * 2;
-      const speed = (Math.random() * 1.5 + .35) * force;
-      particles.push({
-        x: x + (Math.random() - .5) * 12,
-        y: y + (Math.random() - .5) * 12,
+      const speed = (Math.random() * 1.3 + .35) * force;
+      pieces.push({
+        x: x + (Math.random() - .5) * 9,
+        y: y + (Math.random() - .5) * 9,
         vx: Math.cos(angle) * speed,
-        vy: Math.sin(angle) * speed,
+        vy: Math.sin(angle) * speed - .4,
         life: 1,
-        decay: Math.random() * .018 + .012,
-        size: Math.random() * 2.8 + 1,
+        rotation: Math.random() * Math.PI,
+        spin: (Math.random() - .5) * .08,
+        size: Math.random() * 4 + 3,
+        shape: Math.random() > .5 ? "square" : "dot",
         color: colors[Math.floor(Math.random() * colors.length)]
       });
     }
-    limitParticles();
+    while (pieces.length > (width < 700 ? 30 : 55)) pieces.shift();
   };
 
-  const addRipple = (x, y) => {
-    ripples.push({ x, y, radius: 8, life: 1 });
-    while (ripples.length > 5) ripples.shift();
-  };
-
-  const updateCore = () => {
+  const updateStage = () => {
     if (!stage || !core || reducedMotion.matches) return;
     const bounds = stage.getBoundingClientRect();
     const relativeX = (pointer.x - (bounds.left + bounds.width / 2)) / bounds.width;
     const relativeY = (pointer.y - (bounds.top + bounds.height / 2)) / bounds.height;
-    const shiftX = Math.max(-18, Math.min(18, relativeX * 34));
-    const shiftY = Math.max(-18, Math.min(18, relativeY * 34));
-    core.style.setProperty("--core-shift-x", shiftX.toFixed(1) + "px");
-    core.style.setProperty("--core-shift-y", shiftY.toFixed(1) + "px");
-    core.style.setProperty("--eye-x", (relativeX * 8).toFixed(1) + "px");
-    core.style.setProperty("--eye-y", (relativeY * 7).toFixed(1) + "px");
+    const thingX = Math.max(-18, Math.min(18, relativeX * 34));
+    const thingY = Math.max(-14, Math.min(14, relativeY * 28));
+    core.style.setProperty("--thing-x", thingX.toFixed(1) + "px");
+    core.style.setProperty("--thing-y", thingY.toFixed(1) + "px");
+    core.style.setProperty("--eye-x", (relativeX * 7).toFixed(1) + "px");
+    core.style.setProperty("--eye-y", (relativeY * 6).toFixed(1) + "px");
   };
 
   const updateCard = () => {
@@ -92,65 +82,49 @@
     if (!inside) {
       card.style.setProperty("--tilt-x", "0deg");
       card.style.setProperty("--tilt-y", "0deg");
-      card.style.setProperty("--card-x", "50%");
-      card.style.setProperty("--card-y", "50%");
       return;
     }
     const relativeX = (pointer.x - bounds.left) / bounds.width;
     const relativeY = (pointer.y - bounds.top) / bounds.height;
-    card.style.setProperty("--tilt-x", ((.5 - relativeY) * 4).toFixed(2) + "deg");
-    card.style.setProperty("--tilt-y", ((relativeX - .5) * 4).toFixed(2) + "deg");
-    card.style.setProperty("--card-x", (relativeX * 100).toFixed(1) + "%");
-    card.style.setProperty("--card-y", (relativeY * 100).toFixed(1) + "%");
+    card.style.setProperty("--tilt-x", ((.5 - relativeY) * 1.2).toFixed(2) + "deg");
+    card.style.setProperty("--tilt-y", ((relativeX - .5) * 1.2).toFixed(2) + "deg");
+  };
+
+  const drawPiece = (piece) => {
+    context.save();
+    context.translate(piece.x, piece.y);
+    context.rotate(piece.rotation);
+    context.globalAlpha = Math.max(0, piece.life) * .7;
+    context.fillStyle = piece.color;
+    if (piece.shape === "dot") {
+      context.beginPath();
+      context.arc(0, 0, piece.size * .55, 0, Math.PI * 2);
+      context.fill();
+    } else {
+      context.fillRect(-piece.size / 2, -piece.size / 2, piece.size, piece.size * .65);
+    }
+    context.restore();
   };
 
   const draw = () => {
     animationFrame = 0;
-    smoothPointer.x += (pointer.x - smoothPointer.x) * .12;
-    smoothPointer.y += (pointer.y - smoothPointer.y) * .12;
     context.clearRect(0, 0, width, height);
-    const aura = context.createRadialGradient(smoothPointer.x, smoothPointer.y, 0, smoothPointer.x, smoothPointer.y, 130);
-    aura.addColorStop(0, "rgba(187, 255, 101, .1)");
-    aura.addColorStop(1, "rgba(187, 255, 101, 0)");
-    context.fillStyle = aura;
-    context.fillRect(smoothPointer.x - 130, smoothPointer.y - 130, 260, 260);
-
-    for (let index = particles.length - 1; index >= 0; index -= 1) {
-      const particle = particles[index];
-      particle.x += particle.vx;
-      particle.y += particle.vy;
-      particle.vx *= .985;
-      particle.vy *= .985;
-      particle.life -= particle.decay;
-      if (particle.life <= 0) {
-        particles.splice(index, 1);
+    for (let index = pieces.length - 1; index >= 0; index -= 1) {
+      const piece = pieces[index];
+      piece.x += piece.vx;
+      piece.y += piece.vy;
+      piece.vy += .018;
+      piece.vx *= .989;
+      piece.rotation += piece.spin;
+      piece.life -= .015;
+      if (piece.life <= 0) {
+        pieces.splice(index, 1);
         continue;
       }
-      context.globalAlpha = Math.max(0, particle.life) * .8;
-      context.fillStyle = particle.color;
-      context.beginPath();
-      context.arc(particle.x, particle.y, particle.size * particle.life, 0, Math.PI * 2);
-      context.fill();
+      drawPiece(piece);
     }
-
-    for (let index = ripples.length - 1; index >= 0; index -= 1) {
-      const ripple = ripples[index];
-      ripple.radius += 2.6;
-      ripple.life -= .03;
-      if (ripple.life <= 0) {
-        ripples.splice(index, 1);
-        continue;
-      }
-      context.globalAlpha = ripple.life * .55;
-      context.strokeStyle = index % 2 ? "#78ddff" : "#ff75b9";
-      context.lineWidth = 1;
-      context.beginPath();
-      context.arc(ripple.x, ripple.y, ripple.radius, 0, Math.PI * 2);
-      context.stroke();
-    }
-
     context.globalAlpha = 1;
-    updateCore();
+    updateStage();
     updateCard();
     if (!reducedMotion.matches) animationFrame = window.requestAnimationFrame(draw);
   };
@@ -166,10 +140,10 @@
     pointer.y = event.clientY;
     root.style.setProperty("--pointer-x", pointer.x + "px");
     root.style.setProperty("--pointer-y", pointer.y + "px");
-    if (lens) lens.style.transform = "translate3d(" + pointer.x + "px, " + pointer.y + "px, 0)";
-    if (!reducedMotion.matches && distance > 9 && event.timeStamp - lastTrail > 34) {
-      addParticles(pointer.x, pointer.y, Math.min(3, Math.ceil(distance / 35)));
-      lastTrail = event.timeStamp;
+    if (lens) lens.style.transform = "translate3d(" + pointer.x + "px, " + pointer.y + "px, 0) rotate(12deg)";
+    if (!reducedMotion.matches && distance > 13 && event.timeStamp - lastPiece > 60) {
+      addPieces(pointer.x, pointer.y, Math.min(2, Math.ceil(distance / 50)));
+      lastPiece = event.timeStamp;
     }
     scheduleDraw();
   };
@@ -185,14 +159,13 @@
     setMood();
     if (stage) stage.dataset.state = "startled";
     if (!reducedMotion.matches) {
-      addParticles(x, y, 24, 2.2);
-      addRipple(x, y);
+      addPieces(x, y, 13, 1.8);
       scheduleDraw();
     }
-    if (disturbButton) disturbButton.innerHTML = "再扰动一次 <span aria-hidden=\"true\">✦</span>";
+    if (disturbButton) disturbButton.innerHTML = "再戳一下 <span aria-hidden=\"true\">↗</span>";
     window.setTimeout(() => {
       if (stage) stage.dataset.state = "normal";
-    }, 1200);
+    }, 850);
   };
 
   resizeCanvas();
@@ -209,7 +182,7 @@
   });
 
   if (!reducedMotion.matches) {
-    addParticles(width * .5, height * .4, width < 700 ? 16 : 28, .7);
+    addPieces(width * .5, height * .38, width < 700 ? 7 : 13, .55);
     scheduleDraw();
   }
 })();
