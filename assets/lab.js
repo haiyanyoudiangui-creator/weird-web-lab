@@ -8,6 +8,8 @@
   const coreWord = document.querySelector("[data-core-word]");
   const disturbButton = document.querySelector("[data-disturb]");
   const card = document.querySelector("[data-lab-card]");
+  const directoryLink = document.querySelector('a[href="#directory"]');
+  const directory = document.querySelector("#directory");
   const finePointer = window.matchMedia("(pointer: fine)");
   const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
 
@@ -171,6 +173,12 @@
   resizeCanvas();
   window.addEventListener("resize", resizeCanvas, { passive: true });
   document.addEventListener("pointermove", handlePointerMove, { passive: true });
+  directoryLink?.addEventListener("click", (event) => {
+    if (!directory) return;
+    event.preventDefault();
+    window.history.pushState(null, "", "#directory");
+    directory.scrollIntoView({ behavior: "auto", block: "start" });
+  });
   disturbButton?.addEventListener("click", () => disturb(pointer.x, pointer.y));
   stage?.addEventListener("click", (event) => {
     if (event.target.closest("button, a")) return;
