@@ -150,14 +150,32 @@
     context.restore();
   };
 
+  const tracePaperPath = (paper, bend) => {
+    const edgePoints = 8;
+    const halfWidth = paper.width / 2;
+    const halfHeight = paper.height / 2;
+
+    context.beginPath();
+    for (let index = 0; index <= edgePoints; index += 1) {
+      const ratio = index / edgePoints;
+      const x = -halfWidth + paper.width * ratio;
+      const y = -halfHeight + Math.sin(paper.wave + ratio * 2.26) * bend;
+      if (index === 0) context.moveTo(x, y);
+      else context.lineTo(x, y);
+    }
+    for (let index = edgePoints; index >= 0; index -= 1) {
+      const ratio = index / edgePoints;
+      const x = -halfWidth + paper.width * ratio;
+      const y = halfHeight + Math.sin(paper.wave * .77 + ratio * 2.34) * bend * .62;
+      context.lineTo(x, y);
+    }
+    context.closePath();
+  };
+
   const drawPaper = (paper, crowded) => {
     const texture = paper.side === "back" ? paper.textureBack : paper.textureFront;
     if (!imageReady(texture)) return;
 
-    const textureWidth = texture.naturalWidth || texture.width;
-    const textureHeight = texture.naturalHeight || texture.height;
-    const stripCount = crowded ? 3 : 4;
-    const stripWidth = paper.width / stripCount;
     const halfWidth = paper.width / 2;
     const halfHeight = paper.height / 2;
     const bend = paper.bend * (paper.phase === "landed" ? .62 : 1);
@@ -169,65 +187,16 @@
     context.scale(paper.scale, paper.scale);
     context.globalAlpha = paper.opacity;
 
-    for (let index = 0; index < stripCount; index += 1) {
-      const x0 = -halfWidth + index * stripWidth;
-      const x1 = x0 + stripWidth;
-      const wave0 = Math.sin(paper.wave + index * 1.13) * bend;
-      const wave1 = Math.sin(paper.wave + (index + 1) * 1.13) * bend;
-      const top0 = -halfHeight + wave0;
-      const top1 = -halfHeight + wave1;
-      const bottom0 = halfHeight + Math.sin(paper.wave * .77 + index * 1.17) * bend * .62;
-      const bottom1 = halfHeight + Math.sin(paper.wave * .77 + (index + 1) * 1.17) * bend * .62;
-      const sourceX = index * textureWidth / stripCount;
-      const sourceWidth = textureWidth / stripCount;
+    tracePaperPath(paper, bend);
+    context.save();
+    context.clip();
+    context.drawImage(texture, -halfWidth, -halfHeight, paper.width, paper.height);
+    context.restore();
 
-      context.save();
-      context.beginPath();
-      context.moveTo(x0, top0);
-      context.lineTo(x1, top1);
-      context.lineTo(x1, bottom1);
-      context.lineTo(x0, bottom0);
-      context.closePath();
-      context.clip();
-      context.drawImage(
-        texture,
-        sourceX,
-        0,
-        sourceWidth + 1,
-        textureHeight,
-        x0 - 1,
-        -halfHeight - 2,
-        stripWidth + 2,
-        paper.height + 4
-      );
-      context.restore();
-    }
-
-    context.beginPath();
-    context.moveTo(-halfWidth, -halfHeight + Math.sin(paper.wave) * bend);
-    for (let index = 1; index <= stripCount; index += 1) {
-      const x = -halfWidth + index * stripWidth;
-      context.lineTo(x, -halfHeight + Math.sin(paper.wave + index * 1.13) * bend);
-    }
-    for (let index = stripCount; index >= 0; index -= 1) {
-      const x = -halfWidth + index * stripWidth;
-      context.lineTo(x, halfHeight + Math.sin(paper.wave * .77 + index * 1.17) * bend * .62);
-    }
-    context.closePath();
+    tracePaperPath(paper, bend);
     context.strokeStyle = "rgba(34, 36, 33, .34)";
-    context.lineWidth = .75;
+    context.lineWidth = .85;
     context.stroke();
-
-    context.strokeStyle = "rgba(255, 255, 255, .24)";
-    context.lineWidth = .7;
-    for (let index = 1; index < stripCount; index += 1) {
-      const x = -halfWidth + index * stripWidth;
-      const crease = Math.sin(paper.wave + index * 1.13) * bend;
-      context.beginPath();
-      context.moveTo(x, -halfHeight + crease + 2);
-      context.lineTo(x, halfHeight + Math.sin(paper.wave * .77 + index * 1.17) * bend * .62 - 2);
-      context.stroke();
-    }
 
     context.globalAlpha = previousAlpha;
     context.restore();
