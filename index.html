@@ -3,51 +3,63 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#0b1020">
   <meta name="description" content="一个收集奇怪、有趣、实验性 HTML 网页的公开实验室。">
   <title>weird-web-lab · 奇怪网页实验室</title>
   <link rel="stylesheet" href="assets/site.css">
 </head>
 <body data-weird-lab>
-  <div class="cursor-glow" data-cursor-glow aria-hidden="true"></div>
-  <div class="ambient-lines" aria-hidden="true"></div>
+  <canvas class="lab-canvas" data-lab-canvas aria-hidden="true"></canvas>
+  <div class="cursor-lens" data-cursor-lens aria-hidden="true"></div>
+  <div class="screen-grain" aria-hidden="true"></div>
 
   <div class="site-shell">
-    <header class="hero">
-      <div class="hero-halo hero-halo-one" aria-hidden="true"></div>
-      <div class="hero-halo hero-halo-two" aria-hidden="true"></div>
-      <div class="hero-orbit hero-orbit-one" aria-hidden="true"><span></span></div>
-      <div class="hero-orbit hero-orbit-two" aria-hidden="true"><span></span></div>
-      <span class="hero-spark hero-spark-one" aria-hidden="true">✦</span>
-      <span class="hero-spark hero-spark-two" aria-hidden="true">+</span>
-      <span class="hero-spark hero-spark-three" aria-hidden="true">·</span>
-
-      <div class="hero-content">
-        <p class="eyebrow"><span class="eyebrow-dot"></span> HTML EXPERIMENTS / 公开实验室</p>
-        <div class="title-row">
-          <h1><span>weird</span><span class="title-blue">-web-</span><span>lab</span></h1>
-          <span class="title-stamp">NO REASON<br>// ALL CURIOSITY</span>
-        </div>
-        <p class="hero-copy">一些没有必要存在，但做出来很有意思的网页。<br><em>每一次点击，都可能打开一扇不太正经的门。</em></p>
-
-        <div class="hero-tools">
-          <button class="whisper-button" type="button" data-whisper-button>
-            <span class="button-orbit" aria-hidden="true">✦</span>
-            <span>给我一个奇怪点子</span>
-            <span class="button-arrow" aria-hidden="true">↗</span>
-          </button>
-          <p class="whisper-output" data-whisper aria-live="polite">实验室正在等待一个不合常理的想法……</p>
-        </div>
-
-        <div class="hero-meta" aria-label="实验室特征">
-          <span><i></i> 浏览器内运行</span>
-          <span>独立文件夹</span>
-          <span>持续生长</span>
-        </div>
-      </div>
+    <header class="topbar">
+      <a class="brand" href="./" aria-label="回到 weird-web-lab 首页">
+        <span class="brand-mark" aria-hidden="true">∴</span>
+        <span>weird-web-lab</span>
+      </a>
+      <div class="live-state"><span class="live-dot"></span><span>LIVE / 实验没有答案</span></div>
     </header>
 
     <main>
-      <section class="directory-section panel-section">
+      <section class="hero" id="top">
+        <div class="hero-copy">
+          <p class="eyebrow"><span class="eyebrow-pulse"></span> PUBLIC EXPERIMENT / 000</p>
+          <h1><span>WEIRD</span><span class="outline-word">WEB</span><span>LAB</span></h1>
+          <p class="hero-lede">一个专门收集奇怪、有趣、实验性网页的公开实验室。<br><em>你可以随时把它弄坏。</em></p>
+
+          <div class="hero-actions">
+            <a class="primary-link" href="#directory">进入实验目录 <span aria-hidden="true">↓</span></a>
+            <button class="disturb-button" type="button" data-disturb>扰动实验体 <span aria-hidden="true">✦</span></button>
+          </div>
+
+          <div class="lab-readout" aria-live="polite">
+            <span class="readout-label">CURRENT OBSERVATION</span>
+            <strong data-mood>它正在假装自己没在看你。</strong>
+          </div>
+        </div>
+
+        <div class="hero-stage" data-lab-stage>
+          <div class="stage-grid" aria-hidden="true"></div>
+          <div class="stage-topline"><span>OBSERVATION WINDOW</span><span data-stage-count>SPECIMEN 00 / 01</span></div>
+          <div class="lab-core" data-lab-core>
+            <span class="core-ring core-ring-a" aria-hidden="true"></span>
+            <span class="core-ring core-ring-b" aria-hidden="true"></span>
+            <span class="core-ring core-ring-c" aria-hidden="true"></span>
+            <span class="core-orbit core-orbit-a" aria-hidden="true"></span>
+            <span class="core-orbit core-orbit-b" aria-hidden="true"></span>
+            <span class="core-eye core-eye-left" aria-hidden="true"><i></i></span>
+            <span class="core-eye core-eye-right" aria-hidden="true"><i></i></span>
+            <span class="core-mouth" aria-hidden="true"></span>
+            <span class="core-word" data-core-word>CURIOUS</span>
+          </div>
+          <p class="stage-instruction">移动光标<br><span>它会跟着你</span></p>
+          <div class="stage-footer"><span class="stage-led"></span><span>NO BUILD / NO REASON / JUST HTML</span></div>
+        </div>
+      </section>
+
+      <section class="directory-section panel-section" id="directory">
         <div class="section-heading">
           <div>
             <p class="section-label">INDEX / 001</p>
@@ -56,36 +68,38 @@
           <span class="count-badge"><span class="count-dot"></span> 1 experiment</span>
         </div>
 
-        <div class="experiment-grid">
-          <a class="experiment-link" href="experiments/evolution-road/" data-lab-card>
-            <span class="experiment-sheen" aria-hidden="true"></span>
-            <span class="experiment-number">01</span>
-            <span class="experiment-info">
-              <span class="experiment-kicker">寓言学习 · 多页面故事集</span>
+        <p class="directory-intro">每个入口都是一个独立网页。它们不一定有用，但都值得被打开一次。</p>
+
+        <div class="specimen-list">
+          <a class="specimen-card" href="experiments/evolution-road/" data-lab-card>
+            <span class="specimen-light" aria-hidden="true"></span>
+            <span class="specimen-index">01</span>
+            <span class="specimen-info">
+              <span class="specimen-kicker">寓言学习 · 多页面故事集</span>
               <strong>进化之路</strong>
               <span>用不同领域的概念和寓言故事，练习理解世界与处理事情的方法。</span>
             </span>
-            <span class="experiment-arrow" aria-hidden="true">↗</span>
+            <span class="specimen-arrow" aria-hidden="true">↗</span>
           </a>
         </div>
 
-        <div class="next-note">
-          <span>✦</span> 更多奇怪网页会从这里继续长出来。
-        </div>
+        <div class="next-note"><span>✦</span> 更多奇怪网页会从这里继续长出来。</div>
       </section>
 
-      <section class="rules-section panel-section">
-        <p class="section-label">HOW IT GROWS</p>
-        <h2>这里的秩序</h2>
-        <div class="rule-grid">
-          <div class="rule-card"><span class="rule-number">01</span><strong>一个网页，一个文件夹</strong><span>页面和专属资源始终放在一起。</span></div>
-          <div class="rule-card"><span class="rule-number">02</span><strong>首页只做导航</strong><span>实验内容留在自己的独立页面里。</span></div>
-          <div class="rule-card"><span class="rule-number">03</span><strong>奇怪，但不混乱</strong><span>每个实验都有清楚的名称和入口。</span></div>
+      <section class="field-notes panel-section">
+        <div class="notes-heading">
+          <p class="section-label">FIELD NOTES</p>
+          <span class="notes-line" aria-hidden="true"></span>
+        </div>
+        <div class="notes-grid">
+          <div class="note"><span>01</span><strong>一个网页，一个文件夹</strong><p>页面和专属资源始终放在一起。</p></div>
+          <div class="note"><span>02</span><strong>先有好奇，再有用途</strong><p>不急着解释，先允许它发生。</p></div>
+          <div class="note"><span>03</span><strong>奇怪，但不混乱</strong><p>每个实验都有清楚的名称和入口。</p></div>
         </div>
       </section>
     </main>
 
-    <footer><span class="footer-orb" aria-hidden="true"></span> weird-web-lab · made for curious accidents</footer>
+    <footer><span class="footer-mark" aria-hidden="true">∿</span> weird-web-lab · made for curious accidents</footer>
   </div>
   <script src="assets/lab.js" defer></script>
 </body>
