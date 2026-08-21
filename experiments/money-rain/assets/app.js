@@ -206,20 +206,22 @@
       context.restore();
     }
 
-    context.beginPath();
-    context.moveTo(-halfWidth, -halfHeight + Math.sin(paper.wave) * bend);
-    for (let index = 1; index <= stripCount; index += 1) {
-      const x = -halfWidth + index * stripWidth;
-      context.lineTo(x, -halfHeight + Math.sin(paper.wave + index * 1.13) * bend);
+    if (paper.uploaded) {
+      context.beginPath();
+      context.moveTo(-halfWidth, -halfHeight + Math.sin(paper.wave) * bend);
+      for (let index = 1; index <= stripCount; index += 1) {
+        const x = -halfWidth + index * stripWidth;
+        context.lineTo(x, -halfHeight + Math.sin(paper.wave + index * 1.13) * bend);
+      }
+      for (let index = stripCount; index >= 0; index -= 1) {
+        const x = -halfWidth + index * stripWidth;
+        context.lineTo(x, halfHeight + Math.sin(paper.wave * .77 + index * 1.17) * bend * .62);
+      }
+      context.closePath();
+      context.strokeStyle = "rgba(34, 36, 33, .32)";
+      context.lineWidth = .7;
+      context.stroke();
     }
-    for (let index = stripCount; index >= 0; index -= 1) {
-      const x = -halfWidth + index * stripWidth;
-      context.lineTo(x, halfHeight + Math.sin(paper.wave * .77 + index * 1.17) * bend * .62);
-    }
-    context.closePath();
-    context.strokeStyle = "rgba(34, 36, 33, .42)";
-    context.lineWidth = .9;
-    context.stroke();
 
     context.strokeStyle = "rgba(255, 255, 255, .24)";
     context.lineWidth = .7;
