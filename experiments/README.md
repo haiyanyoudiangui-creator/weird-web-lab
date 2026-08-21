@@ -10,3 +10,7 @@ experiments/
 ```
 
 新增实验后，请回到根目录 `index.html` 增加一个跳转卡片。
+
+## 已加入
+
+- `evolution-road/`：寓言式概念学习故事集。

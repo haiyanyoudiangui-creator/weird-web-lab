@@ -125,6 +125,49 @@ main > section { padding: clamp(24px, 5vw, 48px); }
 
 .empty-state p { max-width: 620px; margin: 0; color: var(--muted); }
 
+.experiment-grid { display: grid; gap: 10px; }
+
+.experiment-link {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 18px;
+  padding: 20px 22px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  color: var(--ink);
+  background: var(--panel-soft);
+  text-decoration: none;
+  transition: transform .18s ease, border-color .18s ease, background .18s ease;
+}
+
+.experiment-link:hover {
+  border-color: rgba(167, 243, 107, .55);
+  background: #222b37;
+  transform: translateY(-2px);
+}
+
+.experiment-number {
+  color: var(--accent);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 1.5rem;
+  font-weight: 700;
+}
+
+.experiment-info { display: grid; gap: 4px; }
+.experiment-info strong { font-size: 1.35rem; }
+.experiment-info > span:last-child { color: var(--muted); font-size: .92rem; }
+.experiment-kicker { color: var(--accent-2); font-size: .78rem; }
+.experiment-arrow { color: var(--accent); font-size: 1.5rem; }
+
+.next-note {
+  margin-top: 14px;
+  color: #718095;
+  font-size: .9rem;
+}
+
+.next-note span { color: var(--accent); }
+
 .rule-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
@@ -156,4 +199,6 @@ footer {
   .site-shell { width: min(100% - 20px, 1080px); padding-top: 20px; }
   .section-heading { align-items: start; flex-direction: column; }
   .hero::after { right: -55px; }
+  .experiment-link { grid-template-columns: auto 1fr; gap: 12px; padding: 17px; }
+  .experiment-arrow { grid-column: 2; }
 }
