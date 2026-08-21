@@ -72,9 +72,6 @@
     if (!textureContext) return texture;
     textureContext.fillStyle = currency.color;
     textureContext.fillRect(0, 0, texture.width, texture.height);
-    textureContext.strokeStyle = "rgba(27, 44, 37, .5)";
-    textureContext.lineWidth = 5;
-    textureContext.strokeRect(13, 13, texture.width - 26, texture.height - 26);
     textureContext.globalAlpha = .2;
     for (let x = -texture.height; x < texture.width; x += 32) {
       textureContext.beginPath();
@@ -206,22 +203,20 @@
       context.restore();
     }
 
-    if (paper.uploaded) {
-      context.beginPath();
-      context.moveTo(-halfWidth, -halfHeight + Math.sin(paper.wave) * bend);
-      for (let index = 1; index <= stripCount; index += 1) {
-        const x = -halfWidth + index * stripWidth;
-        context.lineTo(x, -halfHeight + Math.sin(paper.wave + index * 1.13) * bend);
-      }
-      for (let index = stripCount; index >= 0; index -= 1) {
-        const x = -halfWidth + index * stripWidth;
-        context.lineTo(x, halfHeight + Math.sin(paper.wave * .77 + index * 1.17) * bend * .62);
-      }
-      context.closePath();
-      context.strokeStyle = "rgba(34, 36, 33, .32)";
-      context.lineWidth = .7;
-      context.stroke();
+    context.beginPath();
+    context.moveTo(-halfWidth, -halfHeight + Math.sin(paper.wave) * bend);
+    for (let index = 1; index <= stripCount; index += 1) {
+      const x = -halfWidth + index * stripWidth;
+      context.lineTo(x, -halfHeight + Math.sin(paper.wave + index * 1.13) * bend);
     }
+    for (let index = stripCount; index >= 0; index -= 1) {
+      const x = -halfWidth + index * stripWidth;
+      context.lineTo(x, halfHeight + Math.sin(paper.wave * .77 + index * 1.17) * bend * .62);
+    }
+    context.closePath();
+    context.strokeStyle = "rgba(34, 36, 33, .34)";
+    context.lineWidth = .75;
+    context.stroke();
 
     context.strokeStyle = "rgba(255, 255, 255, .24)";
     context.lineWidth = .7;
