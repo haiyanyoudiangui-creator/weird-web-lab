@@ -317,26 +317,33 @@
   };
 
   const landPaper = (paper) => {
-    if (paper.phase === "landed") return;
-    paper.phase = "landed";
+    if (paper.phase === "landed" || paper.phase === "settling") return;
+    paper.phase = "settling";
     paper.y = paper.targetY;
-    paper.z = paper.targetZ;
+    paper.settleProgress = reducedMotion.matches ? 1 : 0;
+    paper.settleStartRotX = paper.rotX;
+    paper.settleStartRotY = paper.rotY;
+    paper.settleStartRotZ = paper.rotZ;
+    paper.settleTargetRotX = (Math.random() - .5) * 8;
+    paper.settleTargetRotY = (Math.random() - .5) * 8;
+    const targetRotZ = (Math.random() - .5) * 38;
+    const normalizedCurrentRotZ = ((paper.rotZ + 180) % 360 + 360) % 360 - 180;
+    paper.settleTargetRotZ = paper.rotZ + (((targetRotZ - normalizedCurrentRotZ + 180) % 360 + 360) % 360 - 180);
+    paper.settleStartZ = paper.z;
+    paper.settleStartFoldDepth = paper.foldDepth;
+    paper.settleStartEdgeCurl = paper.edgeCurl;
+    paper.settleStartRipple = paper.ripple;
+    paper.settleTargetFoldDepth = 12 + Math.random() * 16;
+    paper.settleTargetEdgeCurl = 8 + Math.random() * 11;
+    paper.settleTargetRipple = 3 + Math.random() * 4;
     paper.vx = 0;
     paper.vy = 0;
     paper.vz = 0;
-    paper.rotX = (Math.random() - .5) * 10;
-    paper.rotY = (Math.random() - .5) * 10;
-    paper.rotZ = (Math.random() - .5) * 360;
     paper.vRotX = 0;
     paper.vRotY = 0;
     paper.vRotZ = 0;
-    paper.foldDepth = 12 + Math.random() * 16;
-    paper.edgeCurl = 8 + Math.random() * 11;
-    paper.ripple = 3 + Math.random() * 4;
     paper.bendX *= .45;
     paper.bendY *= .45;
-    landedNotes.push(paper);
-    trimNotes();
     drawScene();
   };
 
@@ -409,6 +416,27 @@
 
   const updatePaper = (paper, timeScale) => {
     if (paper.phase === "landed") return;
+    if (paper.phase === "settling") {
+      paper.settleProgress = clamp(paper.settleProgress + timeScale / 18, 0, 1);
+      const eased = 1 - Math.pow(1 - paper.settleProgress, 3);
+      const mix = (start, end) => start + (end - start) * eased;
+      paper.rotX = mix(paper.settleStartRotX, paper.settleTargetRotX);
+      paper.rotY = mix(paper.settleStartRotY, paper.settleTargetRotY);
+      paper.rotZ = mix(paper.settleStartRotZ, paper.settleTargetRotZ);
+      paper.z = mix(paper.settleStartZ, paper.targetZ);
+      paper.y = paper.targetY - Math.sin(Math.PI * paper.settleProgress) * 4;
+      paper.foldDepth = mix(paper.settleStartFoldDepth, paper.settleTargetFoldDepth);
+      paper.edgeCurl = mix(paper.settleStartEdgeCurl, paper.settleTargetEdgeCurl);
+      paper.ripple = mix(paper.settleStartRipple, paper.settleTargetRipple);
+      if (paper.settleProgress >= 1) {
+        paper.phase = "landed";
+        paper.y = paper.targetY;
+        paper.z = paper.targetZ;
+        landedNotes.push(paper);
+        trimNotes();
+      }
+      return;
+    }
     const size = stageSize();
     paper.vx += wind * .014 * timeScale;
     paper.vx *= Math.pow(.993, timeScale);
